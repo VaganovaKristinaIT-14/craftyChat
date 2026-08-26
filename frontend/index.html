@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CraftyChat</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <div class="app-container">
+
+        <!-- Верхняя панель -->
+        <header id="top-bar">
+            <div class="logo">
+                <span>🎭</span> CraftyChat
+            </div>
+            <nav>
+                <button class="menu-btn" data-menu="presets">⚙️ Пресеты</button>
+                <button class="menu-btn" data-menu="background">🖼️ Фоны</button>
+                <button class="menu-btn" data-menu="lore">📖 Лорбуки</button>
+                <button class="menu-btn" data-menu="summary">📝 Саммари</button>
+                <button class="menu-btn" data-menu="personas">👤 Персоны</button>
+                <button class="menu-btn" data-menu="characters">🤖 Персонажи</button>
+            </nav>
+        </header>
+
+        <!-- Основная область (ГЛАВНАЯ, всегда видна) -->
+        <main id="app">
+            <div id="main-content">
+                <h1>🏠 Главная</h1>
+                <p>Здесь будут последние чаты.</p>
+                <p style="color:#888; font-size:14px;">(пока заглушка)</p>
+            </div>
+        </main>
+
+        <!-- ============================================= -->
+        <!-- БОКОВАЯ ПАНЕЛЬ "ПРЕСЕТЫ" (слева)              -->
+        <!-- ============================================= -->
+        <div id="presets-panel" class="side-panel left-panel">
+            <div class="panel-header">
+                <h2>⚙️ Пресеты</h2>
+            </div>
+            <div class="panel-body">
+                <label>Основной промпт:</label>
+                <textarea id="mainPrompt" rows="6">Ты — персонаж. Отвечай коротко, по делу.</textarea>
+                <label>Дополнительный промпт:</label>
+                <textarea id="extraPrompt" rows="4">Будь саркастичным, но не злым.</textarea>
+            </div>
+        </div>
+
+        <!-- ============================================= -->
+        <!-- БОКОВАЯ ПАНЕЛЬ "ПЕРСОНАЖИ" (справа)           -->
+        <!-- ============================================= -->
+        <div id="characters-panel" class="side-panel right-panel">
+            <div class="panel-header">
+                <h2>🤖 Персонажи</h2>
+            </div>
+            <div class="panel-body">
+                <p>Здесь будет список персонаж.</p>
+                <p style="color:#888; font-size:14px;">(пока заглушка)</p>
+            </div>
+        </div>
+
+        <!-- ============================================= -->
+        <!-- ЦЕНТРАЛЬНАЯ ПАНЕЛЬ (для Фонов, Лорбуков, Саммари, Персон) -->
+        <!-- ============================================= -->
+        <div id="central-panel" class="central-panel">
+            <div class="panel-header">
+                <h2 id="central-panel-title">Заголовок</h2>
+            </div>
+            <div class="panel-body" id="central-panel-body">
+                <!-- Сюда будет подставляться контент -->
+            </div>
+        </div>
+
+    </div>
+
+
+    <script src="js/dataManager.js"></script>   <!-- сначала данные -->
+    <script src="js/app.js"></script>          <!-- потом навигация -->
+    <script src="js/presets.js"></script>      <!-- затем модули -->
+    <script src="js/lorebooks.js"></script>
+    <script src="js/personas.js"></script>
+    <script src="js/characters.js"></script>
+    <script src="js/chat.js"></script>
+    <script src="js/background.js"></script>
+
+</body>
+</html>
