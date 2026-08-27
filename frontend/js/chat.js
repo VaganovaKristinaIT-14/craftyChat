@@ -1,348 +1,388 @@
-// ============================================
-// CHAT — логика отображения чата
-// ============================================
+// ============================================================
+// CHAT — работа с чатами (полная версия с фильтрацией удалённых)
+// ============================================================
 
+window.currentChatId = null;
 let chatMode = 'user';
-let currentChatId = null;
+let chatMessagesPage = 1;
 let chatMenuOpen = false;
+const MSG_PER_PAGE = 20;
 
-function renderChat(chatId) {
-    currentChatId = chatId;
-    const mainContent = document.getElementById('main-content');
-    if (!mainContent) return;
+window.openChat = async function(chatId) {
+  window.currentChatId = chatId;
+  chatMessagesPage = 1;
+  await renderChat();
+};
 
-    mainContent.style.display = 'flex';
-    mainContent.style.flexDirection = 'column';
-    mainContent.style.height = '100%';
-    mainContent.style.padding = '0';
-    mainContent.style.borderRadius = '0';
-    mainContent.style.minHeight = '100%';
-    mainContent.style.background = '#2e2e2e';
+window.openChatForCharacter = async function(characterId) {
+  const chats = await getChatsByCharacter(characterId);
+  if (chats && chats.length > 0) {
+    const last = chats.sort((a, b) => new Date(b.updated) - new Date(a.updated))[0];
+    await openChat(last.id);
+  } else {
+    const newChat = await createChat({ character_id: characterId });
+    await openChat(newChat.id);
+  }
+};
 
-    const chats = getChatsData();
-    const chat = chats.find(c => c.id === chatId);
+async function renderChat() {
+  const main = document.getElementById('main-content');
+  if (!main) return;
+
+  try {
+    const chat = await getChat(window.currentChatId, chatMessagesPage, MSG_PER_PAGE);
     if (!chat) {
-        showToast('Чат не найден');
-        return;
+      showToast('Чат не найден', 'error');
+      return;
     }
 
-    const character = getCharacter(chat.character_id);
-    const persona = getPersona(chat.persona_id);
-    const modeLabel = chatMode === 'user'
-        ? (persona?.name || 'User')
-        : (character?.name || 'Char');
+    const character = await getCharacter(chat.character_id);
+    const persona = chat.persona_id ? await getPersona(chat.persona_id) : null;
 
-    mainContent.innerHTML = `
-        <div style="display:flex;flex-direction:column;height:100%;width:100%;flex:1;">
-            <!-- Заголовок -->
-            <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 16px;border-bottom:1px solid #444;flex-shrink:0;background:#2e2e2e;">
-                <div style="display:flex;align-items:center;gap:10px;">
-                    ${character?.avatar ? `<img src="${character.avatar}" style="width:32px;height:32px;border-radius:50%;object-fit:cover;">` : ''}
-                    <span style="color:#fff;font-weight:600;">${character?.name || 'Персонаж'}</span>
-                    <span style="color:#888;font-size:12px;">${chat.name}</span>
-                </div>
-                <button id="closeChatBtn" style="background:transparent;color:#aaa;border:none;cursor:pointer;font-size:18px;padding:4px 8px;">✕</button>
-            </div>
+    const modeLabel = chatMode === 'user' ? (persona?.name || 'User') : (character?.name || 'Char');
 
-            <!-- Сообщения -->
-            <div id="chatMessages" style="flex:1;overflow-y:auto;padding:12px 16px;display:flex;flex-direction:column;gap:8px;">
-                ${chat.messages.length === 0 ? `
-                    <p style="color:#888;text-align:center;margin-top:40px;">Нет сообщений. Начните диалог.</p>
-                ` : chat.messages.map(msg => `
-                    <div style="display:flex;gap:8px;${msg.role === 'user' ? 'justify-content:flex-end;' : 'justify-content:flex-start;'}">
-                        ${msg.role === 'assistant' ? (character?.avatar ? `<img src="${character.avatar}" style="width:28px;height:28px;border-radius:50%;object-fit:cover;flex-shrink:0;">` : '') : ''}
-                        <div style="background:${msg.role === 'user' ? '#4a6cf7' : '#2e2e2e'};padding:8px 12px;border-radius:12px;max-width:70%;word-wrap:break-word;">
-                            <div style="color:#fff;font-size:14px;">${escHtml(msg.content)}</div>
-                            <div style="color:#888;font-size:10px;margin-top:2px;text-align:right;">${new Date(msg.timestamp).toLocaleTimeString()}</div>
-                        </div>
-                        ${msg.role === 'user' ? (persona?.avatar ? `<img src="${persona.avatar}" style="width:28px;height:28px;border-radius:50%;object-fit:cover;flex-shrink:0;">` : '') : ''}
-                    </div>
-                `).join('')}
-            </div>
+    // 🔥 ФИЛЬТРУЕМ УДАЛЁННЫЕ СООБЩЕНИЯ
+    const activeMessages = chat.messages.filter(m => !m.deleted);
 
-            <!-- Режим над полем ввода -->
-            <div style="display:flex;align-items:center;gap:8px;padding:4px 16px 2px 16px;flex-shrink:0;background:#2e2e2e;">
-                <span style="color:#888;font-size:12px;">Режим: <span id="modeDisplay" style="color:#4a6cf7;font-weight:600;">${modeLabel}</span></span>
-            </div>
-
-            <!-- Поле ввода с иконкой меню -->
-            <div id="inputRow" style="border-top:1px solid #444;padding:6px 16px 10px 16px;display:flex;gap:8px;align-items:center;flex-shrink:0;background:#2e2e2e;position:relative;">
-                <button id="chatMenuBtn" style="background:transparent;color:#aaa;border:none;cursor:pointer;font-size:20px;padding:4px;display:flex;align-items:center;justify-content:center;height:36px;width:36px;flex-shrink:0;">☰</button>
-                <textarea id="chatInput" rows="1" style="flex:1;background:#111212;color:#fff;border:1px solid #555;border-radius:8px;padding:8px;resize:none;font-family:inherit;font-size:14px;min-height:36px;max-height:120px;" placeholder="Введите сообщение..."></textarea>
-                <button id="sendChatBtn" style="background:#4a6cf7;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:20px;display:flex;align-items:center;justify-content:center;height:40px;width:40px;flex-shrink:0;">✈</button>
-                <!-- Контейнер для меню (позиционируется относительно inputRow) -->
-                <div id="chatMenuDropdown" style="display:none;position:absolute;bottom:calc(100% + 6px);left:0;background:#2e2e2e;border:1px solid #555;border-radius:8px;padding:6px 0;min-width:200px;z-index:100;box-shadow:0 8px 24px rgba(0,0,0,0.5);animation:slideUp 0.15s ease;"></div>
-            </div>
+    main.innerHTML = `
+      <div style="display:flex; flex-direction:column; height:100%;">
+        <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 16px; border-bottom:1px solid #333; background:#14141a;">
+          <div style="display:flex; align-items:center; gap:10px;">
+            ${character?.avatar ? `<img src="${character.avatar}" style="width:32px;height:32px;border-radius:50%;">` : ''}
+            <span style="font-weight:600;">${escHtml(character?.name || 'Персонаж')}</span>
+            <span style="color:#666; font-size:13px;">${escHtml(chat.name)}</span>
+          </div>
+          <button class="btn btn-sm btn-outline" id="closeChatBtn">✕ Закрыть</button>
         </div>
+
+        <div id="chatMessages" style="flex:1; overflow-y:auto; padding:12px 16px; display:flex; flex-direction:column; gap:6px;">
+          ${activeMessages.length === 0 ? '<p style="color:#666; text-align:center; margin-top:40px;">Нет сообщений</p>' :
+            activeMessages.map(m => `
+              <div style="display:flex; ${m.role === 'user' ? 'justify-content:flex-end;' : 'justify-content:flex-start;'}">
+                <div class="message ${m.role === 'user' ? 'message-user' : 'message-char'}">
+                  <div>${escHtml(m.content)}</div>
+                  <div class="message-meta">
+                    <span class="msg-index">#${m.index}</span>
+                    <span class="msg-time">${new Date(m.timestamp).toLocaleString()}</span>
+                  </div>
+                </div>
+              </div>
+            `).join('')}
+        </div>
+
+        <div style="display:flex; align-items:center; padding:4px 16px; background:#14141a; border-top:1px solid #333;">
+          <span style="color:#888; font-size:13px;">Режим: <span id="modeDisplay" style="color:#4a6cf7; font-weight:600;">${modeLabel}</span></span>
+        </div>
+
+        <div class="chat-input-row">
+          <button class="btn btn-outline" id="chatMenuBtn" style="padding:0 10px;">☰</button>
+          <textarea id="chatInput" rows="1" placeholder="Введите сообщение..."></textarea>
+          <button class="btn" id="sendChatBtn">✈</button>
+        </div>
+
+        <div id="chatMenuDropdown" style="display:none; position:absolute; bottom:70px; left:20px; background:#1e1e26; border:1px solid #333; border-radius:10px; padding:6px 0; min-width:200px; box-shadow:0 8px 24px rgba(0,0,0,0.5); z-index:200;"></div>
+      </div>
     `;
 
-    // ============================================
-    // Обработчики
-    // ============================================
+    // === Обработчики ===
 
-    document.getElementById('closeChatBtn')?.addEventListener('click', function(e) {
-        e.stopPropagation();
-        renderMainPage();
-        closeChatMenu();
+    // Закрыть чат
+    document.getElementById('closeChatBtn')?.addEventListener('click', function() {
+      renderMainPage();
     });
 
-    // Кнопка меню
-    document.getElementById('chatMenuBtn')?.addEventListener('click', function(e) {
-        e.stopPropagation();
-        e.preventDefault();
-        toggleChatMenu();
-    });
+    // Отправка сообщения
+    const sendBtn = document.getElementById('sendChatBtn');
+    const input = document.getElementById('chatInput');
 
-    // Отправка
-    function sendMessage() {
-        const input = document.getElementById('chatInput');
-        const text = input.value.trim();
-        if (!text) return;
-        const role = chatMode === 'user' ? 'user' : 'assistant';
-        addMessageToChat(chatId, role, text);
-        input.value = '';
-        input.style.height = 'auto';
-        if (role === 'user') {
-            chatMode = 'char';
-            updateModeDisplay();
+    async function sendMessage() {
+      const text = input.value.trim();
+      if (!text) return;
+      const role = chatMode === 'user' ? 'user' : 'assistant';
+      try {
+        const result = await addMessage(window.currentChatId, role, text);
+        if (result.chat_mode) chatMode = result.chat_mode;
+        if (result.notify_update_history) {
+          showToast('Обновите историю чата (саммари)', 'warning', 5000);
         }
+        input.value = '';
+        await renderChat();
+        if (role === 'user') {
+          await generateAndCopyPrompt(text);
+        }
+      } catch (e) {
+        showToast('Ошибка отправки', 'error');
+      }
     }
 
-    document.getElementById('sendChatBtn')?.addEventListener('click', function(e) {
-        e.stopPropagation();
+    sendBtn?.addEventListener('click', sendMessage);
+    input?.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
         sendMessage();
+      }
+    });
+    input?.addEventListener('input', function() {
+      this.style.height = 'auto';
+      this.style.height = Math.min(this.scrollHeight, 120) + 'px';
     });
 
-    const chatInput = document.getElementById('chatInput');
-    if (chatInput) {
-        chatInput.addEventListener('keydown', function(e) {
-            if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                sendMessage();
-            }
-        });
-        chatInput.addEventListener('input', function() {
-            this.style.height = 'auto';
-            this.style.height = Math.min(this.scrollHeight, 120) + 'px';
-        });
-    }
+    // Меню чата
+    const menuBtn = document.getElementById('chatMenuBtn');
+    const dropdown = document.getElementById('chatMenuDropdown');
+    menuBtn?.addEventListener('click', function(e) {
+      e.stopPropagation();
+      toggleChatMenu(dropdown);
+    });
+
+    // Закрытие меню при клике вне
+    document.addEventListener('click', function onOutside(e) {
+      if (dropdown && dropdown.style.display !== 'none' && !dropdown.contains(e.target) && !menuBtn.contains(e.target)) {
+        dropdown.style.display = 'none';
+        chatMenuOpen = false;
+      }
+    });
 
     // Прокрутка вниз
-    const messagesContainer = document.getElementById('chatMessages');
-    if (messagesContainer) {
-        messagesContainer.scrollTop = messagesContainer.scrollHeight;
-    }
+    const msgs = document.getElementById('chatMessages');
+    if (msgs) msgs.scrollTop = msgs.scrollHeight;
 
-    // Закрытие меню при клике вне его
-    document.addEventListener('click', function onOutsideClick(e) {
-        const dropdown = document.getElementById('chatMenuDropdown');
-        const btn = document.getElementById('chatMenuBtn');
-        if (dropdown && btn && dropdown.style.display !== 'none') {
-            if (!dropdown.contains(e.target) && !btn.contains(e.target)) {
-                closeChatMenu();
-            }
-        }
-    });
+    // Восстанавливаем режим из сохранённого на сервере
+    if (chat.mode) chatMode = chat.mode;
 
-    // Закрытие по Escape
-    document.addEventListener('keydown', function onEscape(e) {
-        if (e.key === 'Escape') {
-            closeChatMenu();
-        }
-    });
+  } catch (e) {
+    main.innerHTML = `<p style="color:#e74c6f;">Ошибка загрузки чата</p>`;
+    console.error(e);
+  }
 }
 
-// ============================================
-// УПРАВЛЕНИЕ МЕНЮ ЧАТА
-// ============================================
-function toggleChatMenu() {
-    const dropdown = document.getElementById('chatMenuDropdown');
-    if (!dropdown) return;
-    if (dropdown.style.display === 'none' || dropdown.style.display === '') {
-        openChatMenu();
-    } else {
-        closeChatMenu();
-    }
-}
+// ============================================================
+// МЕНЮ ЧАТА
+// ============================================================
 
-function openChatMenu() {
-    const dropdown = document.getElementById('chatMenuDropdown');
-    if (!dropdown) return;
-    if (chatMenuOpen) return;
+function toggleChatMenu(dropdown) {
+  if (!dropdown) return;
+  if (dropdown.style.display === 'none') {
+    dropdown.innerHTML = `
+      <div class="chat-menu-item" data-action="close" style="padding:8px 16px; color:#e74c6f; cursor:pointer;">✕ Закрыть чат</div>
+      <div class="chat-menu-item" data-action="chats" style="padding:8px 16px; cursor:pointer;">📋 Все чаты</div>
+      <div class="chat-menu-item" data-action="new" style="padding:8px 16px; cursor:pointer;">➕ Новый чат</div>
+      <div class="chat-menu-item" data-action="checkpoint" style="padding:8px 16px; cursor:pointer;">💾 Чекпоинт</div>
+      <div class="chat-menu-item" data-action="delete_messages" style="padding:8px 16px; color:#e74c6f; cursor:pointer;">🗑️ Удалить сообщения</div>
+      <div class="chat-menu-item" data-action="generate" style="padding:8px 16px; color:#4a6cf7; cursor:pointer;">⚡ Генерация промпта</div>
+      <div style="border-top:1px solid #333; margin:4px 12px;"></div>
+      <div class="chat-menu-item" data-action="mode_user" style="padding:8px 16px; cursor:pointer;">👤 Режим User</div>
+      <div class="chat-menu-item" data-action="mode_char" style="padding:8px 16px; cursor:pointer;">🤖 Режим Char</div>
+    `;
+    dropdown.style.display = 'block';
     chatMenuOpen = true;
 
-    const currentMode = chatMode;
-
-    dropdown.innerHTML = `
-        <div style="display:flex;flex-direction:column;">
-            <div class="chat-menu-item" data-action="close" style="padding:8px 16px;color:#ff6b6b;cursor:pointer;border-radius:0;transition:background 0.15s;white-space:nowrap;">✕ Закрыть чат</div>
-            <div class="chat-menu-item" data-action="chats" style="padding:8px 16px;color:#fff;cursor:pointer;border-radius:0;transition:background 0.15s;white-space:nowrap;">📋 Все чаты</div>
-            <div class="chat-menu-item" data-action="new" style="padding:8px 16px;color:#fff;cursor:pointer;border-radius:0;transition:background 0.15s;white-space:nowrap;">➕ Начать новый чат</div>
-            <div class="chat-menu-item" data-action="checkpoint" style="padding:8px 16px;color:#fff;cursor:pointer;border-radius:0;transition:background 0.15s;white-space:nowrap;">💾 Сделать чекпоинт</div>
-            <div class="chat-menu-item" data-action="delete_messages" style="padding:8px 16px;color:#ff6b6b;cursor:pointer;border-radius:0;transition:background 0.15s;white-space:nowrap;">🗑️ Удалить сообщения</div>
-            <div class="chat-menu-item" data-action="generate" style="padding:8px 16px;color:#4a6cf7;cursor:pointer;border-radius:0;transition:background 0.15s;white-space:nowrap;">⚡ Сгенерировать промпт</div>
-            <div style="border-top:1px solid #444;margin:4px 12px;"></div>
-            <div class="chat-menu-item" data-action="mode_user" style="padding:8px 16px;color:${currentMode === 'user' ? '#4a6cf7' : '#aaa'};cursor:pointer;border-radius:0;transition:background 0.15s;font-weight:${currentMode === 'user' ? 'bold' : 'normal'};white-space:nowrap;">
-                👤 Режим user
-            </div>
-            <div class="chat-menu-item" data-action="mode_char" style="padding:8px 16px;color:${currentMode === 'char' ? '#4a6cf7' : '#aaa'};cursor:pointer;border-radius:0;transition:background 0.15s;font-weight:${currentMode === 'char' ? 'bold' : 'normal'};white-space:nowrap;">
-                🤖 Режим char
-            </div>
-        </div>
-    `;
-
-    dropdown.style.display = 'block';
-
     dropdown.querySelectorAll('.chat-menu-item').forEach(item => {
-        item.addEventListener('mouseenter', function() {
-            this.style.background = '#3a3a4a';
-        });
-        item.addEventListener('mouseleave', function() {
-            this.style.background = 'transparent';
-        });
-        item.addEventListener('click', function(e) {
-            e.stopPropagation();
-            const action = this.dataset.action;
-            handleChatMenuAction(action);
-            closeChatMenu();
-        });
-    });
-}
-
-function closeChatMenu() {
-    const dropdown = document.getElementById('chatMenuDropdown');
-    if (dropdown) {
+      item.addEventListener('mouseenter', function() { this.style.background = '#2a2a34'; });
+      item.addEventListener('mouseleave', function() { this.style.background = 'transparent'; });
+      item.addEventListener('click', function(e) {
+        e.stopPropagation();
+        const action = this.dataset.action;
+        handleChatMenuAction(action);
         dropdown.style.display = 'none';
-        dropdown.innerHTML = '';
-    }
+        chatMenuOpen = false;
+      });
+    });
+  } else {
+    dropdown.style.display = 'none';
     chatMenuOpen = false;
+  }
 }
 
-function handleChatMenuAction(action) {
-    switch (action) {
-        case 'close':
-            renderMainPage();
-            break;
-        case 'chats':
-            showToast('Список чатов будет реализован позже');
-            break;
-        case 'new':
-            if (currentChatId) {
-                const chat = getChat(currentChatId);
-                if (chat) {
-                    const newChat = createChat(chat.character_id, chat.persona_id);
-                    renderChat(newChat.id);
-                    showToast('Новый чат создан');
-                }
-            }
-            break;
-        case 'checkpoint':
-            if (currentChatId) {
-                const chat = getChat(currentChatId);
-                if (chat) {
-                    const copy = JSON.parse(JSON.stringify(chat));
-                    copy.id = generateId();
-                    copy.name = chat.name + ' (чекпоинт)';
-                    const chats = getChatsData();
-                    chats.push(copy);
-                    saveChatsData(chats);
-                    updateChatsIndex(copy);
-                    renderChat(copy.id);
-                    showToast('Чекпоинт создан');
-                }
-            }
-            break;
-        case 'delete_messages':
-            showToast('Выберите сообщения для удаления (будет позже)');
-            break;
-        case 'generate':
-            showToast('Промпт сгенерирован! (заглушка)');
-            console.log('Сгенерирован промпт для чата:', currentChatId);
-            break;
-        case 'mode_user':
-            chatMode = 'user';
-            updateModeDisplay();
-            showToast('Режим: User');
-            break;
-        case 'mode_char':
-            chatMode = 'char';
-            updateModeDisplay();
-            showToast('Режим: Char');
-            break;
-        default:
-            break;
+// ============================================================
+// ОБРАБОТЧИКИ ДЕЙСТВИЙ МЕНЮ
+// ============================================================
+
+async function handleChatMenuAction(action) {
+  switch (action) {
+    case 'close':
+      renderMainPage();
+      break;
+
+    case 'chats':
+      showAllChatsModal();
+      break;
+
+    case 'new':
+      if (window.currentChatId) {
+        const chat = await getChat(window.currentChatId);
+        if (chat) {
+          const newChat = await createChat({
+            character_id: chat.character_id,
+            persona_id: chat.persona_id
+          });
+          await openChat(newChat.id);
+          showToast('Новый чат создан', 'success');
+        }
+      }
+      break;
+
+    case 'checkpoint':
+      if (window.currentChatId) {
+        const cp = await createCheckpoint(window.currentChatId);
+        await openChat(cp.id);
+        showToast('Чекпоинт создан', 'success');
+      }
+      break;
+
+    case 'delete_messages': {
+      const indicesStr = prompt(
+        'Введите индексы сообщений для удаления (через запятую, например: 1,2,5)\n' +
+        'Индексы видны как #0, #1 рядом с каждым сообщением.'
+      );
+      if (indicesStr) {
+        const indices = indicesStr.split(',').map(s => parseInt(s.trim())).filter(n => !isNaN(n));
+        if (indices.length) {
+          await deleteMessages(window.currentChatId, indices);
+          await renderChat();
+          showToast('Сообщения удалены', 'success');
+        }
+      }
+      break;
     }
+
+    case 'generate':
+      if (window.currentChatId) {
+        const lastMsg = document.querySelector('#chatMessages .message:last-child');
+        const text = lastMsg ? lastMsg.textContent : '';
+        await generateAndCopyPrompt(text);
+      }
+      break;
+
+    case 'mode_user': {
+      const result = await setChatMode(window.currentChatId, 'user');
+      chatMode = result.mode;
+      updateModeDisplay();
+      showToast('Режим: User', 'info');
+      break;
+    }
+
+    case 'mode_char': {
+      const result = await setChatMode(window.currentChatId, 'char');
+      chatMode = result.mode;
+      updateModeDisplay();
+      showToast('Режим: Char', 'info');
+      break;
+    }
+
+    default:
+      break;
+  }
 }
+
+// ============================================================
+// ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
+// ============================================================
 
 function updateModeDisplay() {
-    const display = document.getElementById('modeDisplay');
-    if (!display) return;
-    if (currentChatId) {
-        const chat = getChat(currentChatId);
-        if (chat) {
-            const character = getCharacter(chat.character_id);
-            const persona = getPersona(chat.persona_id);
-            const label = chatMode === 'user'
-                ? (persona?.name || 'User')
-                : (character?.name || 'Char');
-            display.textContent = label;
-        }
+  const el = document.getElementById('modeDisplay');
+  if (el) {
+    el.textContent = chatMode === 'user' ? 'User' : 'Char';
+  }
+}
+
+async function generateAndCopyPrompt(userMessage) {
+  try {
+    const result = await generateMainPrompt(window.currentChatId, userMessage);
+    if (result.ok === false) {
+      showToast(result.message || 'Нельзя сгенерировать промпт', 'warning');
+      return;
     }
+    await navigator.clipboard.writeText(result.prompt);
+    showToast(
+      `Промпт скопирован (${result.tokens_after} токенов, отброшено ${result.discarded_tokens})`,
+      'success'
+    );
+    console.log('Промпт:', result.prompt);
+  } catch (e) {
+    showToast('Ошибка генерации промпта', 'error');
+  }
 }
 
-function getChat(chatId) {
-    const chats = getChatsData();
-    return chats.find(c => c.id === chatId) || null;
-}
+// ============================================================
+// МОДАЛЬНОЕ ОКНО "ВСЕ ЧАТЫ"
+// ============================================================
 
-// ============================================
-// ДОБАВЛЕНИЕ СООБЩЕНИЯ
-// ============================================
-function addMessageToChat(chatId, role, content) {
-    const chats = getChatsData();
-    const chat = chats.find(c => c.id === chatId);
-    if (!chat) return;
-    const newMsg = {
-        id: chat.messages.length,
-        role: role,
-        content: content,
-        timestamp: new Date().toISOString()
-    };
-    chat.messages.push(newMsg);
-    chat.updated = new Date().toISOString();
-    saveChatsData(chats);
-    updateChatsIndex(chat);
-    renderChat(chatId);
-}
+async function showAllChatsModal() {
+  const modal = document.getElementById('chats-modal');
+  if (!modal) return;
+  modal.style.display = 'flex';
+  const body = document.getElementById('chats-modal-body');
 
-// ============================================
-// ГЛАВНАЯ СТРАНИЦА
-// ============================================
-function renderMainPage() {
-    const mainContent = document.getElementById('main-content');
-    if (mainContent) {
-        mainContent.style.display = 'block';
-        mainContent.style.height = 'auto';
-        mainContent.style.padding = '30px';
-        mainContent.style.borderRadius = '0';
-        mainContent.style.minHeight = '100%';
-        mainContent.style.background = '#2e2e2e';
-        mainContent.innerHTML = `
-            <h1>🏠 Главная</h1>
-            <p>Здесь будут последние чаты.</p>
-            <p style="color:#888; font-size:14px;">(пока заглушка)</p>
-        `;
-    }
-}
+  try {
+    const chatData = await getChat(window.currentChatId);
+    const chats = await getChatsByCharacter(chatData.character_id);
 
-// ============================================
-// ОТКРЫТИЕ ЧАТА ПО ПЕРСОНАЖУ
-// ============================================
-window.openChatForCharacter = function(characterId) {
-    let chat = getLastChat(characterId);
-    if (!chat) {
-        const activePersonaId = getActivePersonaId() || null;
-        chat = createChat(characterId, activePersonaId);
-    }
-    renderChat(chat.id);
-};
+    body.innerHTML = chats.map(c => `
+      <div class="card-item" data-id="${c.id}" style="cursor:pointer;">
+        <div class="card-info">
+          <div class="name">${escHtml(c.name)}</div>
+          <div class="sub">${new Date(c.updated).toLocaleString()}</div>
+        </div>
+        <button class="btn btn-sm btn-outline" data-action="export_json">⬇️ JSON</button>
+        <button class="btn btn-sm btn-outline" data-action="export_txt">⬇️ TXT</button>
+        <button class="btn btn-sm btn-danger" data-action="delete">🗑️</button>
+      </div>
+    `).join('');
+
+    // Обработчики внутри модалки
+    body.querySelectorAll('.card-item').forEach(el => {
+      el.addEventListener('click', function(e) {
+        if (e.target.closest('button')) return;
+        const id = this.dataset.id;
+        modal.style.display = 'none';
+        openChat(id);
+      });
+
+      el.querySelectorAll('button').forEach(btn => {
+        btn.addEventListener('click', async function(e) {
+          e.stopPropagation();
+          const action = this.dataset.action;
+          const id = el.dataset.id;
+
+          if (action === 'export_json') {
+            const data = await exportChatJSON(id);
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `chat_${id}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+            showToast('Экспортировано JSON', 'success');
+          } else if (action === 'export_txt') {
+            const text = await exportChatTXT(id);
+            const blob = new Blob([text], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `chat_${id}.txt`;
+            a.click();
+            URL.revokeObjectURL(url);
+            showToast('Экспортировано TXT', 'success');
+          } else if (action === 'delete') {
+            if (confirm('Удалить чат?')) {
+              await deleteChat(id);
+              showAllChatsModal(); // обновить список
+              showToast('Чат удалён', 'success');
+            }
+          }
+        });
+      });
+    });
+  } catch (e) {
+    body.innerHTML = '<p style="color:#e74c6f;">Ошибка загрузки чатов</p>';
+  }
+
+  document.getElementById('closeChatsModal')?.addEventListener('click', function() {
+    modal.style.display = 'none';
+  });
+  modal.addEventListener('click', function(e) {
+    if (e.target === modal) modal.style.display = 'none';
+  });
+}

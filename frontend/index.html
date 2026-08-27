@@ -1,90 +1,87 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CraftyChat</title>
-    <link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CraftyChat</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,420;0,9..144,560;0,9..144,650;1,9..144,500&family=Manrope:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎭</text></svg>" />
 </head>
 <body>
+  <div class="app-container">
+    <!-- Верхняя панель -->
+    <header id="top-bar">
+      <div class="logo">
+        <span class="logo-mark">🎭</span>
+        <span class="logo-text">CraftyChat<em>[System]</em></span>
+      </div>
+      <nav>
+        <button class="menu-btn" data-menu="presets"><i>01</i>Пресеты</button>
+        <button class="menu-btn" data-menu="background"><i>02</i>Фоны</button>
+        <button class="menu-btn" data-menu="lore"><i>03</i>Лорбуки</button>
+        <button class="menu-btn" data-menu="summary"><i>04</i>Саммари</button>
+        <button class="menu-btn" data-menu="personas"><i>05</i>Персоны</button>
+        <button class="menu-btn" data-menu="characters"><i>06</i>Персонажи</button>
+      </nav>
+    </header>
 
-    <div class="app-container">
+    <!-- Основная область -->
+    <main id="app">
+      <div id="main-content">
+        <!-- сюда рендерится главная страница или чат -->
+      </div>
+    </main>
 
-        <!-- Верхняя панель -->
-        <header id="top-bar">
-            <div class="logo">
-                <span>🎭</span> CraftyChat
-            </div>
-            <nav>
-                <button class="menu-btn" data-menu="presets">⚙️ Пресеты</button>
-                <button class="menu-btn" data-menu="background">🖼️ Фоны</button>
-                <button class="menu-btn" data-menu="lore">📖 Лорбуки</button>
-                <button class="menu-btn" data-menu="summary">📝 Саммари</button>
-                <button class="menu-btn" data-menu="personas">👤 Персоны</button>
-                <button class="menu-btn" data-menu="characters">🤖 Персонажи</button>
-            </nav>
-        </header>
+    <!-- Боковая панель Пресетов (слева) -->
+    <aside id="presets-panel" class="side-panel left-panel">
+      <div class="panel-header">
+        <h2>⚙️ Пресеты</h2>
+        <button class="close-panel" data-panel="presets">✕</button>
+      </div>
+      <div class="panel-body" id="presets-body"></div>
+    </aside>
 
-        <!-- Основная область (ГЛАВНАЯ, всегда видна) -->
-        <main id="app">
-            <div id="main-content">
-                <h1>🏠 Главная</h1>
-                <p>Здесь будут последние чаты.</p>
-                <p style="color:#888; font-size:14px;">(пока заглушка)</p>
-            </div>
-        </main>
+    <!-- Боковая панель Персонажей (справа) -->
+    <aside id="characters-panel" class="side-panel right-panel">
+      <div class="panel-header">
+        <h2>🤖 Персонажи</h2>
+        <button class="close-panel" data-panel="characters">✕</button>
+      </div>
+      <div class="panel-body" id="characters-body"></div>
+    </aside>
 
-        <!-- ============================================= -->
-        <!-- БОКОВАЯ ПАНЕЛЬ "ПРЕСЕТЫ" (слева)              -->
-        <!-- ============================================= -->
-        <div id="presets-panel" class="side-panel left-panel">
-            <div class="panel-header">
-                <h2>⚙️ Пресеты</h2>
-            </div>
-            <div class="panel-body">
-                <label>Основной промпт:</label>
-                <textarea id="mainPrompt" rows="6">Ты — персонаж. Отвечай коротко, по делу.</textarea>
-                <label>Дополнительный промпт:</label>
-                <textarea id="extraPrompt" rows="4">Будь саркастичным, но не злым.</textarea>
-            </div>
-        </div>
-
-        <!-- ============================================= -->
-        <!-- БОКОВАЯ ПАНЕЛЬ "ПЕРСОНАЖИ" (справа)           -->
-        <!-- ============================================= -->
-        <div id="characters-panel" class="side-panel right-panel">
-            <div class="panel-header">
-                <h2>🤖 Персонажи</h2>
-            </div>
-            <div class="panel-body">
-                <p>Здесь будет список персонаж.</p>
-                <p style="color:#888; font-size:14px;">(пока заглушка)</p>
-            </div>
-        </div>
-
-        <!-- ============================================= -->
-        <!-- ЦЕНТРАЛЬНАЯ ПАНЕЛЬ (для Фонов, Лорбуков, Саммари, Персон) -->
-        <!-- ============================================= -->
-        <div id="central-panel" class="central-panel">
-            <div class="panel-header">
-                <h2 id="central-panel-title">Заголовок</h2>
-            </div>
-            <div class="panel-body" id="central-panel-body">
-                <!-- Сюда будет подставляться контент -->
-            </div>
-        </div>
-
+    <!-- Центральная панель (для всех остальных) -->
+    <div id="central-panel" class="central-panel">
+      <div class="panel-header">
+        <h2 id="central-panel-title">Заголовок</h2>
+        <button class="close-panel" data-panel="central">✕</button>
+      </div>
+      <div class="panel-body" id="central-panel-body"></div>
     </div>
 
+    <!-- Модальное окно для списка чатов -->
+    <div id="chats-modal" class="modal-overlay" style="display:none;">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2>📋 История чатов</h2>
+          <button class="close-modal" id="closeChatsModal">✕</button>
+        </div>
+        <div class="modal-body" id="chats-modal-body"></div>
+      </div>
+    </div>
+  </div>
 
-    <script src="js/dataManager.js"></script>   <!-- сначала данные -->
-    <script src="js/app.js"></script>          <!-- потом навигация -->
-    <script src="js/presets.js"></script>      <!-- затем модули -->
-    <script src="js/lorebooks.js"></script>
-    <script src="js/personas.js"></script>
-    <script src="js/characters.js"></script>
-    <script src="js/chat.js"></script>
-    <script src="js/background.js"></script>
-
+  <script src="js/dataManager.js"></script>
+  <script src="js/app.js"></script>
+  <script src="js/presets.js"></script>
+  <script src="js/lorebooks.js"></script>
+  <script src="js/personas.js"></script>
+  <script src="js/characters.js"></script>
+  <script src="js/chat.js"></script>
+  <script src="js/background.js"></script>
+  <script src="js/summary.js"></script>
 </body>
 </html>

@@ -1,37 +1,43 @@
-# Python
+# Виртуальное окружение
+venv/
+env/
+.env/
+.venv/
+
+# Файлы Python
 __pycache__/
 *.pyc
 *.pyo
 *.pyd
 .Python
-*.so
-*.egg
-*.egg-info/
+
+# Файлы данных — НЕ ЗАЛИВАЕМ!
+backend/data/
+backend/data/*
+
+# Фоны (полноразмерные изображения) — они могут быть большими
+backend/data/backgrounds/
+
+# Логи и временные файлы
+*.log
+*.tmp
+*.bak
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Настройки окружения
+.env
+.env.local
+
+# Сборка и дистрибутивы
 dist/
 build/
-*.whl
-venv/
-.venv/
-env/
-ENV/
-env.bak/
-venv.bak/
+*.egg-info/
 
-# PyCharm
-.idea/
-*.iml
-.vscode/
-
-# Node / Frontend
-node_modules/
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-
-# OS
+# Файлы ОС
 .DS_Store
 Thumbs.db
-
-# Project specific
-data/
-*.log
