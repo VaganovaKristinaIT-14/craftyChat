@@ -76,7 +76,7 @@ async function renderSummaryPanel() {
         }
         await navigator.clipboard.writeText(result.prompt);
         showToast(`Промпт для саммари скопирован (токенов: ${result.tokens})`, 'success');
-        const summary = prompt('Введите полученный пересказ:');
+        const summary = await showPrompt('Вставьте полученный от модели пересказ', '', { title: 'Сохранить саммари', multiline: true });
         if (summary) {
           await saveSummaryBlock(window.currentChatId, result.start_index, result.end_index, summary);
           renderSummaryPanel();
@@ -99,7 +99,7 @@ async function renderSummaryPanel() {
       btn.addEventListener('click', async function(e) {
         e.stopPropagation();
         const id = this.dataset.id;
-        if (!confirm('Удалить блок?')) return;
+        if (!(await showConfirm('Удалить блок саммари?', { title: 'Удаление блока', okText: 'Удалить' }))) return;
         await deleteSummaryBlock(window.currentChatId, id);
         renderSummaryPanel();
         showToast('Блок удалён', 'success');
@@ -113,7 +113,7 @@ async function renderSummaryPanel() {
         const id = this.dataset.id;
         const block = blocks.find(b => b.id === id);
         const currentName = block?.name || '';
-        const newName = prompt('Новое название блока:', currentName);
+        const newName = await showPrompt('Новое название блока', currentName, { title: 'Переименовать блок' });
         if (newName) {
           await updateSummaryBlock(window.currentChatId, id, { name: newName });
           renderSummaryPanel();

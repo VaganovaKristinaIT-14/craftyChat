@@ -290,3 +290,117 @@ function compressImage(dataUrl, maxWidth, maxHeight, quality, callback) {
   img.src = dataUrl;
 }
 window.compressImage = compressImage;
+
+// ============================================================
+// КАСТОМНОЕ ПОДТВЕРЖДЕНИЕ (вместо window.confirm)
+// ============================================================
+function showConfirm(message, options = {}) {
+  const { title = 'Подтвердите действие', okText = 'ОК', cancelText = 'Отмена', danger = true } = options;
+  return new Promise((resolve) => {
+    const overlay = document.createElement('div');
+    overlay.className = 'app-modal-overlay';
+    overlay.innerHTML = `
+      <div class="app-modal">
+        <div class="app-modal-title">${escHtml(title)}</div>
+        <div class="app-modal-message">${escHtml(message)}</div>
+        <div class="app-modal-actions">
+          <button class="app-modal-btn ${danger ? 'app-modal-btn-danger' : 'app-modal-btn-primary'}" id="appModalOk">${escHtml(okText)}</button>
+          <button class="app-modal-btn app-modal-btn-cancel" id="appModalCancel">${escHtml(cancelText)}</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+    requestAnimationFrame(() => overlay.classList.add('visible'));
+
+    function close(result) {
+      overlay.classList.remove('visible');
+      setTimeout(() => overlay.remove(), 180);
+      document.removeEventListener('keydown', onKey);
+      resolve(result);
+    }
+    function onKey(e) {
+      if (e.key === 'Escape') close(false);
+      if (e.key === 'Enter') close(true);
+    }
+    overlay.querySelector('#appModalOk').addEventListener('click', () => close(true));
+    overlay.querySelector('#appModalCancel').addEventListener('click', () => close(false));
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) close(false); });
+    document.addEventListener('keydown', onKey);
+    overlay.querySelector('#appModalCancel').focus();
+  });
+}
+window.showConfirm = showConfirm;
+
+// ============================================================
+// КАСТОМНЫЙ ПРОМПТ (вместо window.prompt) — для форм с обычным полем ввода
+// ============================================================
+function showPrompt(message, defaultValue = '', options = {}) {
+  const { title = 'Введите значение', okText = 'Сохранить', cancelText = 'Отмена', multiline = false } = options;
+  return new Promise((resolve) => {
+    const overlay = document.createElement('div');
+    overlay.className = 'app-modal-overlay';
+    overlay.innerHTML = `
+      <div class="app-modal">
+        <div class="app-modal-title">${escHtml(title)}</div>
+        ${message ? `<div class="app-modal-message">${escHtml(message)}</div>` : ''}
+        ${multiline
+          ? `<textarea class="app-modal-input" id="appModalInput" rows="4">${escHtml(defaultValue)}</textarea>`
+          : `<input class="app-modal-input" id="appModalInput" type="text" value="${escHtml(defaultValue)}">`
+        }
+        <div class="app-modal-actions">
+          <button class="app-modal-btn app-modal-btn-primary" id="appModalOk">${escHtml(okText)}</button>
+          <button class="app-modal-btn app-modal-btn-cancel" id="appModalCancel">${escHtml(cancelText)}</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+    requestAnimationFrame(() => overlay.classList.add('visible'));
+    const input = overlay.querySelector('#appModalInput');
+    input.focus();
+    input.select();
+
+    function close(result) {
+      overlay.classList.remove('visible');
+      setTimeout(() => overlay.remove(), 180);
+      document.removeEventListener('keydown', onKey);
+      resolve(result);
+    }
+    function onKey(e) {
+      if (e.key === 'Escape') close(null);
+      if (e.key === 'Enter' && !multiline) close(input.value);
+    }
+    overlay.querySelector('#appModalOk').addEventListener('click', () => close(input.value));
+    overlay.querySelector('#appModalCancel').addEventListener('click', () => close(null));
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) close(null); });
+    document.addEventListener('keydown', onKey);
+  });
+}
+window.showPrompt = showPrompt;
+
+// ============================================================
+// ЛАЙТБОКС — полноразмерный просмотр аватарки
+// ============================================================
+function openLightbox(src) {
+  if (!src) return;
+  const overlay = document.createElement('div');
+  overlay.className = 'lightbox-overlay';
+  overlay.innerHTML = `
+    <div class="lightbox-frame">
+      <img src="${src}" class="lightbox-img">
+      <button class="lightbox-close" title="Закрыть">✕</button>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  requestAnimationFrame(() => overlay.classList.add('visible'));
+
+  function close() {
+    overlay.classList.remove('visible');
+    setTimeout(() => overlay.remove(), 180);
+    document.removeEventListener('keydown', onKey);
+  }
+  function onKey(e) { if (e.key === 'Escape') close(); }
+  overlay.querySelector('.lightbox-close').addEventListener('click', close);
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
+  document.addEventListener('keydown', onKey);
+}
+window.openLightbox = openLightbox;

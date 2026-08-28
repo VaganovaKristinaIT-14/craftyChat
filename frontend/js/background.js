@@ -56,7 +56,7 @@ async function renderBackgroundPanel() {
     });
 
     document.getElementById('resetBgBtn')?.addEventListener('click', async function() {
-      if (!confirm('Удалить все фоны?')) return;
+      if (!(await showConfirm('Удалить все фоны? Это действие необратимо.', { title: 'Сброс фонов', okText: 'Удалить' }))) return;
       await resetBackgrounds();
       renderBackgroundPanel();
       showToast('Сброшено', 'success');

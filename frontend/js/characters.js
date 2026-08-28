@@ -152,8 +152,9 @@ async function renderCharDetail() {
         <span class="token-counter" style="color:#666;">${tokenCount} токенов</span>
       </div>
       <div style="display:flex; gap:12px; align-items:center; flex-wrap:wrap; margin:8px 0;">
-        <div id="charAvatar" style="width:64px;height:64px;border-radius:50%;overflow:hidden;background:#333;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:28px;">
+        <div id="charAvatar" class="avatar-clickable" style="width:64px;height:64px;border-radius:50%;overflow:hidden;background:#333;display:flex;align-items:center;justify-content:center;font-size:28px;">
           ${char.avatar ? `<img src="${char.avatar}" style="width:100%;height:100%;object-fit:cover;">` : '🤖'}
+          <div class="avatar-upload-badge" id="charAvatarUpload" title="Загрузить аватар">📷</div>
         </div>
         <div style="display:flex; gap:6px; flex-wrap:wrap;">
           <button class="btn btn-sm" id="renameCharBtn">✎ Переименовать</button>
@@ -182,7 +183,7 @@ async function renderCharDetail() {
     });
 
     document.getElementById('renameCharBtn')?.addEventListener('click', async function() {
-      const name = prompt('Новое имя:', char.name);
+      const name = await showPrompt('Новое имя персонажа', char.name, { title: 'Переименовать персонажа' });
       if (name) {
         await updateCharacter(char.id, { name });
         char = await getCharacter(char.id);
@@ -213,7 +214,8 @@ async function renderCharDetail() {
     });
 
     document.getElementById('deleteCharBtn')?.addEventListener('click', async function() {
-      if (!confirm(`Удалить персонажа "${char.name}"?`)) return;
+      const ok = await showConfirm(`Удалить персонажа "${char.name}"? Это действие необратимо.`, { title: 'Удаление персонажа', okText: 'Удалить' });
+      if (!ok) return;
       await deleteCharacter(char.id);
       selectedCharId = null;
       renderCharactersPanel();
@@ -234,7 +236,13 @@ async function renderCharDetail() {
       }
     });
 
-    document.getElementById('charAvatar')?.addEventListener('click', function() {
+    document.getElementById('charAvatar')?.addEventListener('click', function(e) {
+      if (e.target.closest('#charAvatarUpload')) return;
+      if (char.avatar) openLightbox(char.avatar);
+    });
+
+    document.getElementById('charAvatarUpload')?.addEventListener('click', function(e) {
+      e.stopPropagation();
       const input = document.createElement('input');
       input.type = 'file';
       input.accept = 'image/*';
@@ -244,7 +252,8 @@ async function renderCharDetail() {
         if (file.size > 5*1024*1024) { showToast('Файл >5 МБ', 'error'); return; }
         const reader = new FileReader();
         reader.onload = function(e) {
-          compressImage(e.target.result, 200, 200, 0.8, async function(thumb) {
+          // Сохраняем аватар в большем размере (800x800) для полноэкранного просмотра
+          compressImage(e.target.result, 800, 800, 0.9, async function(thumb) {
             if (!thumb) { showToast('Не удалось обработать изображение', 'error'); return; }
             const blob = await fetch(thumb).then(r => r.blob());
             const fileObj = new File([blob], 'avatar.jpg', { type: 'image/jpeg' });
@@ -259,12 +268,15 @@ async function renderCharDetail() {
       input.click();
     });
 
+    // ============================================================
+    // АВТОСОХРАНЕНИЕ ПОЛЕЙ БЕЗ ПЕРЕРИСОВКИ ПАНЕЛИ
+    // ============================================================
     document.querySelectorAll('.char-field').forEach(textarea => {
       textarea.addEventListener('input', debounce(async function() {
         const field = this.dataset.field;
         const val = this.value;
         await updateCharacter(char.id, { fields: { [field]: val } });
-        char = await getCharacter(char.id);
+        char.fields[field] = val;
         const total = char.name + Object.values(char.fields).join('');
         const tokens = Math.round(total.length / 3);
         const span = body.querySelector('.token-counter');

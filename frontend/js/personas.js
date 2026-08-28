@@ -127,8 +127,9 @@ async function renderPersonaDetail(personaId) {
         </div>
       </div>
       <div style="display:flex; gap:12px; margin:8px 0;">
-        <div id="personaAvatar" style="width:64px;height:64px;border-radius:50%;overflow:hidden;background:#333;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:28px;">
+        <div id="personaAvatar" class="avatar-clickable" style="width:64px;height:64px;border-radius:50%;overflow:hidden;background:#333;display:flex;align-items:center;justify-content:center;font-size:28px;">
           ${persona.avatar ? `<img src="${persona.avatar}">` : '👤'}
+          <div class="avatar-upload-badge" id="personaAvatarUpload" title="Загрузить аватар">📷</div>
         </div>
         <div style="flex:1;">
           <label>Описание</label>
@@ -164,7 +165,7 @@ function attachPersonaDetailHandlers() {
     if (!selectedPersonaId) return;
     const persona = await getPersona(selectedPersonaId);
     if (!persona) return;
-    const newName = prompt('Новое имя:', persona.name);
+    const newName = await showPrompt('Новое имя персоны', persona.name, { title: 'Переименовать персону' });
     if (newName) {
       await updatePersona(selectedPersonaId, { name: newName });
       renderPersonasPanel();
@@ -187,7 +188,7 @@ function attachPersonaDetailHandlers() {
     if (!selectedPersonaId) return;
     const persona = await getPersona(selectedPersonaId);
     if (!persona) return;
-    if (!confirm(`Удалить персону "${persona.name}"?`)) return;
+    if (!(await showConfirm(`Удалить персону "${persona.name}"? Это действие необратимо.`, { title: 'Удаление персоны', okText: 'Удалить' }))) return;
     await deletePersona(selectedPersonaId);
     selectedPersonaId = null;
     renderPersonasPanel();
@@ -201,7 +202,15 @@ function attachPersonaDetailHandlers() {
     showToast('Персона активна', 'success');
   });
 
-  document.getElementById('personaAvatar')?.addEventListener('click', function() {
+  document.getElementById('personaAvatar')?.addEventListener('click', async function(e) {
+    if (e.target.closest('#personaAvatarUpload')) return;
+    if (!selectedPersonaId) return;
+    const persona = await getPersona(selectedPersonaId);
+    if (persona?.avatar) openLightbox(persona.avatar);
+  });
+
+  document.getElementById('personaAvatarUpload')?.addEventListener('click', function(e) {
+    e.stopPropagation();
     if (!selectedPersonaId) return;
     const input = document.createElement('input');
     input.type = 'file'; input.accept = 'image/*';
@@ -211,7 +220,7 @@ function attachPersonaDetailHandlers() {
       if (file.size > 5*1024*1024) { showToast('Файл >5 МБ', 'error'); return; }
       const reader = new FileReader();
       reader.onload = function(e) {
-        compressImage(e.target.result, 200, 200, 0.8, async function(thumb) {
+        compressImage(e.target.result, 800, 800, 0.9, async function(thumb) {
           if (!thumb) { showToast('Не удалось обработать изображение', 'error'); return; }
           const blob = await fetch(thumb).then(r => r.blob());
           const fileObj = new File([blob], 'avatar.jpg', { type: 'image/jpeg' });
@@ -240,7 +249,11 @@ function attachPersonaDetailHandlers() {
       return;
     }
     const options = chars.map(c => `${c.id} | ${c.name}`).join('\n');
-    const choice = prompt(`Введите ID персонажа для привязки:\n\n${options}\n\n💡 ID можно скопировать из списка персонажей (кнопка 📋)`);
+    const choice = await showPrompt(
+      `Доступные персонажи:\n${options}\n\n💡 ID можно скопировать из списка персонажей (кнопка 📋)`,
+      '',
+      { title: 'Привязать персонажа по ID', multiline: true }
+    );
     if (!choice) return;
     const charId = choice.trim();
     try {
@@ -258,7 +271,7 @@ function attachPersonaDetailHandlers() {
       if (!selectedPersonaId) return;
       const charId = this.dataset.charId;
       if (!charId) return;
-      if (!confirm('Отвязать персонажа?')) return;
+      if (!(await showConfirm('Отвязать персонажа от этой персоны?', { title: 'Отвязать персонажа', okText: 'Отвязать' }))) return;
       await unlinkPersonaFromCharacter(selectedPersonaId, charId);
       renderPersonasPanel();
       showToast('Отвязано', 'success');

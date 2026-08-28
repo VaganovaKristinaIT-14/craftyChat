@@ -62,6 +62,13 @@ document.addEventListener('DOMContentLoaded', async function() {
     const panels = ['presets-panel', 'characters-panel', 'central-panel'];
     const isInside = panels.some(id => document.getElementById(id).contains(e.target));
     const isBtn = e.target.closest('.menu-btn') || e.target.closest('.close-panel');
+    // Клики по модалкам подтверждения/ввода, лайтбоксу, тостам и модалке чатов
+    // не должны закрывать боковые/центральную панель у них "под низом".
+    const isOverlay = e.target.closest('.app-modal-overlay')
+      || e.target.closest('.lightbox-overlay')
+      || e.target.closest('.toast-container')
+      || e.target.closest('.modal-overlay');
+    if (isOverlay) return;
     if (!isInside && !isBtn) {
       document.getElementById('presets-panel').classList.remove('open');
       document.getElementById('characters-panel').classList.remove('open');

@@ -119,7 +119,7 @@ async function renderLorebooksPanel() {
 
     // 1. Создать мир
     document.getElementById('createLorebookBtn')?.addEventListener('click', async () => {
-      const name = prompt('Название нового мира:');
+      const name = await showPrompt('Название нового мира', '', { title: 'Новый мир' });
       if (name) {
         const newLb = await createLorebook(name);
         selectedLorebookId = newLb.id;
@@ -137,7 +137,7 @@ async function renderLorebooksPanel() {
     // 3. Переименовать мир
     document.getElementById('renameLorebookBtn')?.addEventListener('click', async () => {
       const id = document.getElementById('lorebookSelect').value;
-      const name = prompt('Новое название мира:');
+      const name = await showPrompt('Новое название мира', '', { title: 'Переименовать мир' });
       if (name) {
         await renameLorebook(id, name);
         renderLorebooksPanel();
@@ -157,7 +157,7 @@ async function renderLorebooksPanel() {
     // 5. Удалить мир
     document.getElementById('deleteLorebookBtn')?.addEventListener('click', async () => {
       const id = document.getElementById('lorebookSelect').value;
-      if (!confirm('Удалить мир и все его записи?')) return;
+      if (!(await showConfirm('Удалить мир и все его записи? Это действие необратимо.', { title: 'Удаление мира', okText: 'Удалить' }))) return;
       await deleteLorebook(id);
       selectedLorebookId = null;
       renderLorebooksPanel();
@@ -212,7 +212,7 @@ async function renderLorebooksPanel() {
         const entryId = card.dataset.id;
         const worldId = document.getElementById('lorebookSelect').value;
         const currentName = card.querySelector('.entry-name').textContent;
-        const newName = prompt('Введите новое название записи:', currentName);
+        const newName = await showPrompt('Введите новое название записи', currentName, { title: 'Переименовать запись' });
         if (newName && newName.trim()) {
           await updateLoreEntry(worldId, entryId, { name: newName.trim() });
           renderLorebooksPanel();
@@ -254,7 +254,7 @@ async function renderLorebooksPanel() {
         const card = this.closest('.entry-card');
         const entryId = card.dataset.id;
         const worldId = document.getElementById('lorebookSelect').value;
-        if (!confirm('Удалить запись?')) return;
+        if (!(await showConfirm('Удалить запись?', { title: 'Удаление записи', okText: 'Удалить' }))) return;
         await deleteLoreEntry(worldId, entryId);
         renderLorebooksPanel();
         showToast('Запись удалена', 'success');

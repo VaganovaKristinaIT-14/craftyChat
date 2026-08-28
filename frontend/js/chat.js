@@ -48,7 +48,7 @@ async function renderChat() {
       <div style="display:flex; flex-direction:column; height:100%;">
         <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 16px; border-bottom:1px solid #333; background:#14141a;">
           <div style="display:flex; align-items:center; gap:10px;">
-            ${character?.avatar ? `<img src="${character.avatar}" style="width:32px;height:32px;border-radius:50%;">` : ''}
+            ${character?.avatar ? `<img src="${character.avatar}" id="chatHeaderAvatar" class="avatar-clickable" style="width:32px;height:32px;border-radius:50%;">` : ''}
             <span style="font-weight:600;">${escHtml(character?.name || 'Персонаж')}</span>
             <span style="color:#666; font-size:13px;">${escHtml(chat.name)}</span>
           </div>
@@ -57,17 +57,27 @@ async function renderChat() {
 
         <div id="chatMessages" style="flex:1; overflow-y:auto; padding:12px 16px; display:flex; flex-direction:column; gap:6px;">
           ${activeMessages.length === 0 ? '<p style="color:#666; text-align:center; margin-top:40px;">Нет сообщений</p>' :
-            activeMessages.map(m => `
-              <div style="display:flex; ${m.role === 'user' ? 'justify-content:flex-end;' : 'justify-content:flex-start;'}">
-                <div class="message ${m.role === 'user' ? 'message-user' : 'message-char'}">
+            activeMessages.map(m => {
+              const isUser = m.role === 'user';
+              const avatarSrc = isUser ? (persona?.avatar || '') : (character?.avatar || '');
+              const avatarName = isUser ? (persona?.name || 'User') : (character?.name || 'Char');
+              const avatarHtml = avatarSrc
+                ? `<img src="${avatarSrc}" class="msg-avatar avatar-clickable" data-avatar-src="${avatarSrc}">`
+                : `<div class="msg-avatar msg-avatar-fallback">${isUser ? '👤' : '🤖'}</div>`;
+              return `
+              <div class="message-row ${isUser ? 'message-row-user' : 'message-row-char'}">
+                ${!isUser ? avatarHtml : ''}
+                <div class="message ${isUser ? 'message-user' : 'message-char'}">
+                  <div class="message-author">${escHtml(avatarName)}</div>
                   <div>${escHtml(m.content)}</div>
                   <div class="message-meta">
                     <span class="msg-index">#${m.index}</span>
                     <span class="msg-time">${new Date(m.timestamp).toLocaleString()}</span>
                   </div>
                 </div>
+                ${isUser ? avatarHtml : ''}
               </div>
-            `).join('')}
+            `; }).join('')}
         </div>
 
         <div style="display:flex; align-items:center; padding:4px 16px; background:#14141a; border-top:1px solid #333;">
@@ -89,6 +99,19 @@ async function renderChat() {
     // Закрыть чат
     document.getElementById('closeChatBtn')?.addEventListener('click', function() {
       renderMainPage();
+    });
+
+    // Полноразмерный просмотр аватара персонажа
+    document.getElementById('chatHeaderAvatar')?.addEventListener('click', function() {
+      if (character?.avatar) openLightbox(character.avatar);
+    });
+
+    // Полноразмерный просмотр аватарок у сообщений
+    document.querySelectorAll('#chatMessages .msg-avatar[data-avatar-src]').forEach(el => {
+      el.addEventListener('click', function() {
+        const src = this.dataset.avatarSrc;
+        if (src) openLightbox(src);
+      });
     });
 
     // Отправка сообщения
@@ -231,9 +254,10 @@ async function handleChatMenuAction(action) {
       break;
 
     case 'delete_messages': {
-      const indicesStr = prompt(
-        'Введите индексы сообщений для удаления (через запятую, например: 1,2,5)\n' +
-        'Индексы видны как #0, #1 рядом с каждым сообщением.'
+      const indicesStr = await showPrompt(
+        'Индексы видны как #0, #1 рядом с каждым сообщением.',
+        '',
+        { title: 'Удалить сообщения (через запятую, напр. 1,2,5)' }
       );
       if (indicesStr) {
         const indices = indicesStr.split(',').map(s => parseInt(s.trim())).filter(n => !isNaN(n));
@@ -366,7 +390,7 @@ async function showAllChatsModal() {
             URL.revokeObjectURL(url);
             showToast('Экспортировано TXT', 'success');
           } else if (action === 'delete') {
-            if (confirm('Удалить чат?')) {
+            if (await showConfirm('Удалить чат? Это действие необратимо.', { title: 'Удаление чата', okText: 'Удалить' })) {
               await deleteChat(id);
               showAllChatsModal(); // обновить список
               showToast('Чат удалён', 'success');

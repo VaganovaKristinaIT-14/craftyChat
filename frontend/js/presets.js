@@ -76,7 +76,7 @@ async function renderPresetsPanel() {
 
     document.getElementById('addCollectionBtn')?.addEventListener('click', async function(e) {
       e.stopPropagation();
-      const name = prompt('Введите название нового сборника:', 'Новый сборник');
+      const name = await showPrompt('Введите название нового сборника', 'Новый сборник', { title: 'Новый сборник' });
       if (!name) return;
       const d = await getPresetsData();
       const newCol = { id: generateId(), name, mainPrompt: '', extraPrompt: '', presets: [], tokenLimit: 10000 };
@@ -92,7 +92,7 @@ async function renderPresetsPanel() {
       const d = await getPresetsData();
       const col = getActiveCollectionFrom(d);
       if (!col) return;
-      const newName = prompt('Новое название:', col.name);
+      const newName = await showPrompt('Новое название сборника', col.name, { title: 'Переименовать сборник' });
       if (!newName) return;
       col.name = newName;
       await savePresetsData(d);
@@ -109,7 +109,7 @@ async function renderPresetsPanel() {
       }
       const col = getActiveCollectionFrom(d);
       if (!col) return;
-      if (!confirm(`Удалить сборник "${col.name}"?`)) return;
+      if (!(await showConfirm(`Удалить сборник "${col.name}"? Это действие необратимо.`, { title: 'Удаление сборника', okText: 'Удалить' }))) return;
       d.collections = d.collections.filter(c => c.id !== col.id);
       d.activeCollectionId = d.collections[0].id;
       await savePresetsData(d);
@@ -268,7 +268,7 @@ async function renderPresetsPanel() {
         if (!col) return;
         const preset = col.presets.find(p => p.id === id);
         if (!preset) return;
-        const newName = prompt('Новое название пресета:', preset.name);
+        const newName = await showPrompt('Новое название пресета', preset.name, { title: 'Переименовать пресет' });
         if (!newName) return;
         preset.name = newName;
         await savePresetsData(d);

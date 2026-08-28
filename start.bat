@@ -46,7 +46,8 @@ pip install Pillow
 
 echo.
 echo Starting CraftyChat...
-echo Open in browser: http://localhost:5000
+echo Opening browser at http://localhost:5000
+start http://localhost:5000
 python app.py
 
 :end
