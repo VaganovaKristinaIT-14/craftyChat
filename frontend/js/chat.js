@@ -29,88 +29,101 @@ async function renderChat() {
   const main = document.getElementById('main-content');
   if (!main) return;
 
+  // Включаем режим чата
+  main.classList.add('chat-mode');
+
   try {
     const chat = await getChat(window.currentChatId, chatMessagesPage, MSG_PER_PAGE);
     if (!chat) {
       showToast('Чат не найден', 'error');
+      renderMainPage();
       return;
     }
 
     const character = await getCharacter(chat.character_id);
     const persona = chat.persona_id ? await getPersona(chat.persona_id) : null;
 
-    const modeLabel = chatMode === 'user' ? (persona?.name || 'User') : (character?.name || 'Char');
+    // Определяем режим для отображения
+    const modeDisplay = chatMode === 'user' ? 'User' : 'Char';
 
-    // 🔥 ФИЛЬТРУЕМ УДАЛЁННЫЕ СООБЩЕНИЯ
+    // Фильтруем удалённые сообщения
     const activeMessages = chat.messages.filter(m => !m.deleted);
 
-    main.innerHTML = `
-      <div style="display:flex; flex-direction:column; height:100%;">
-        <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 16px; border-bottom:1px solid #333; background:#14141a;">
-          <div style="display:flex; align-items:center; gap:10px;">
-            ${character?.avatar ? `<img src="${character.avatar}" id="chatHeaderAvatar" class="avatar-clickable" style="width:32px;height:32px;border-radius:50%;">` : ''}
-            <span style="font-weight:600;">${escHtml(character?.name || 'Персонаж')}</span>
-            <span style="color:#666; font-size:13px;">${escHtml(chat.name)}</span>
-          </div>
-          <button class="btn btn-sm btn-outline" id="closeChatBtn">✕ Закрыть</button>
-        </div>
+    const formatDate = (iso) => {
+  const date = new Date(iso);
+  const months = [
+    'января', 'февраля', 'марта', 'апреля', 'мая', 'июня',
+    'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'
+  ];
+  const day = date.getDate();
+  const month = months[date.getMonth()];
+  const year = date.getFullYear();
+  const hours = date.getHours().toString().replace(/^0/, '');
+  const minutes = date.getMinutes().toString().padStart(2, '0');
+  return `${day} ${month} ${year} г. ${hours}:${minutes}`;
+};
 
-        <div id="chatMessages" style="flex:1; overflow-y:auto; padding:12px 16px; display:flex; flex-direction:column; gap:6px;">
-          ${activeMessages.length === 0 ? '<p style="color:#666; text-align:center; margin-top:40px;">Нет сообщений</p>' :
+    // Рендерим контент
+    main.innerHTML = `
+      <div class="chat-viewport">
+        <!-- Область сообщений -->
+        <div id="chatMessages" class="chat-messages">
+          ${activeMessages.length === 0 ? '<p class="empty-message">Нет сообщений. Начните историю первым.</p>' :
             activeMessages.map(m => {
               const isUser = m.role === 'user';
               const avatarSrc = isUser ? (persona?.avatar || '') : (character?.avatar || '');
               const avatarName = isUser ? (persona?.name || 'User') : (character?.name || 'Char');
               const avatarHtml = avatarSrc
-                ? `<img src="${avatarSrc}" class="msg-avatar avatar-clickable" data-avatar-src="${avatarSrc}">`
-                : `<div class="msg-avatar msg-avatar-fallback">${isUser ? '👤' : '🤖'}</div>`;
+                ? `<img src="${avatarSrc}" class="msg-avatar avatar-clickable" data-avatar-src="${avatarSrc}" data-avatar-name="${avatarName}">`
+                : `<div class="msg-avatar msg-avatar-fallback avatar-clickable" data-avatar-src="" data-avatar-name="${avatarName}">${isUser ? '👤' : '🤖'}</div>`;
               return `
               <div class="message-row ${isUser ? 'message-row-user' : 'message-row-char'}">
-                ${!isUser ? avatarHtml : ''}
-                <div class="message ${isUser ? 'message-user' : 'message-char'}">
-                  <div class="message-author">${escHtml(avatarName)}</div>
-                  <div>${escHtml(m.content)}</div>
-                  <div class="message-meta">
+                ${avatarHtml}
+                <div class="message-content-wrapper">
+                  <div class="message-header">
+                    <span class="message-author">${escHtml(avatarName)}</span>
+                    <span class="message-time">${formatDate(m.timestamp)}</span>
+                  </div>
+                  <div class="message-text">${escHtml(m.content)}</div>
+                  <div class="message-meta" style="display:none;">
                     <span class="msg-index">#${m.index}</span>
-                    <span class="msg-time">${new Date(m.timestamp).toLocaleString()}</span>
                   </div>
                 </div>
-                ${isUser ? avatarHtml : ''}
               </div>
             `; }).join('')}
         </div>
 
-        <div style="display:flex; align-items:center; padding:4px 16px; background:#14141a; border-top:1px solid #333;">
-          <span style="color:#888; font-size:13px;">Режим: <span id="modeDisplay" style="color:#4a6cf7; font-weight:600;">${modeLabel}</span></span>
-        </div>
+        <!-- Подвал чата (фиксированный внизу) -->
+        <footer class="chat-footer">
+          <div class="mode-indicator">
+            <span>Режим: <strong id="modeDisplay">${modeDisplay}</strong></span>
+          </div>
+          <div class="chat-input-row">
+            <button class="btn btn-outline" id="chatMenuBtn">☰</button>
+            <textarea id="chatInput" rows="1" placeholder="Напишите сценарий..."></textarea>
+            <button class="btn" id="sendChatBtn">${window.iconImg('send', 'Отправить', 20, 20)}</button>
+          </div>
+        </footer>
 
-        <div class="chat-input-row">
-          <button class="btn btn-outline" id="chatMenuBtn" style="padding:0 10px;">☰</button>
-          <textarea id="chatInput" rows="1" placeholder="Введите сообщение..."></textarea>
-          <button class="btn" id="sendChatBtn">✈</button>
-        </div>
-
-        <div id="chatMenuDropdown" style="display:none; position:absolute; bottom:70px; left:20px; background:#1e1e26; border:1px solid #333; border-radius:10px; padding:6px 0; min-width:200px; box-shadow:0 8px 24px rgba(0,0,0,0.5); z-index:200;"></div>
+        <!-- Меню чата -->
+        <div id="chatMenuDropdown" class="chat-menu-dropdown" style="display:none;"></div>
       </div>
     `;
 
     // === Обработчики ===
 
-    // Закрыть чат
-    document.getElementById('closeChatBtn')?.addEventListener('click', function() {
-      renderMainPage();
-    });
-
-    // Полноразмерный просмотр аватара персонажа
-    document.getElementById('chatHeaderAvatar')?.addEventListener('click', function() {
-      if (character?.avatar) openLightbox(character.avatar);
-    });
-
-    // Полноразмерный просмотр аватарок у сообщений
-    document.querySelectorAll('#chatMessages .msg-avatar[data-avatar-src]').forEach(el => {
-      el.addEventListener('click', function() {
+    // Клик по аватарке — открываем предпросмотр слева
+    document.querySelectorAll('.msg-avatar.avatar-clickable').forEach(el => {
+      el.addEventListener('click', function(e) {
+        e.stopPropagation();
         const src = this.dataset.avatarSrc;
-        if (src) openLightbox(src);
+        const name = this.dataset.avatarName || 'Аватар';
+        if (src) {
+          showAvatarPreview(src, name);
+        } else {
+          // если аватарки нет, можно показать заглушку или ничего
+          showAvatarPreview(null, name);
+        }
       });
     });
 
@@ -139,7 +152,7 @@ async function renderChat() {
     }
 
     sendBtn?.addEventListener('click', sendMessage);
-    input?.addEventListener('keydown', function(e) {
+    input?.addEventListener('keydown', (e) => {
       if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault();
         sendMessage();
@@ -147,35 +160,30 @@ async function renderChat() {
     });
     input?.addEventListener('input', function() {
       this.style.height = 'auto';
-      this.style.height = Math.min(this.scrollHeight, 120) + 'px';
+      this.style.height = Math.min(this.scrollHeight, 150) + 'px';
     });
 
     // Меню чата
     const menuBtn = document.getElementById('chatMenuBtn');
     const dropdown = document.getElementById('chatMenuDropdown');
-    menuBtn?.addEventListener('click', function(e) {
+    menuBtn?.addEventListener('click', (e) => {
       e.stopPropagation();
       toggleChatMenu(dropdown);
-    });
-
-    // Закрытие меню при клике вне
-    document.addEventListener('click', function onOutside(e) {
-      if (dropdown && dropdown.style.display !== 'none' && !dropdown.contains(e.target) && !menuBtn.contains(e.target)) {
-        dropdown.style.display = 'none';
-        chatMenuOpen = false;
-      }
     });
 
     // Прокрутка вниз
     const msgs = document.getElementById('chatMessages');
     if (msgs) msgs.scrollTop = msgs.scrollHeight;
 
-    // Восстанавливаем режим из сохранённого на сервере
     if (chat.mode) chatMode = chat.mode;
+    // обновляем отображение режима
+    const modeEl = document.getElementById('modeDisplay');
+    if (modeEl) modeEl.textContent = chatMode === 'user' ? 'User' : 'Char';
 
   } catch (e) {
-    main.innerHTML = `<p style="color:#e74c6f;">Ошибка загрузки чата</p>`;
+    main.innerHTML = `<p class="error-message">Ошибка загрузки чата: ${e.message}</p>`;
     console.error(e);
+    renderMainPage();
   }
 }
 
@@ -186,6 +194,8 @@ async function renderChat() {
 function toggleChatMenu(dropdown) {
   if (!dropdown) return;
   if (dropdown.style.display === 'none') {
+    // Добавляем класс для стилизации, убираем inline-стили позиционирования
+    dropdown.className = 'chat-menu-dropdown';
     dropdown.innerHTML = `
       <div class="chat-menu-item" data-action="close" style="padding:8px 16px; color:#e74c6f; cursor:pointer;">✕ Закрыть чат</div>
       <div class="chat-menu-item" data-action="chats" style="padding:8px 16px; cursor:pointer;">📋 Все чаты</div>
@@ -408,5 +418,46 @@ async function showAllChatsModal() {
   });
   modal.addEventListener('click', function(e) {
     if (e.target === modal) modal.style.display = 'none';
+  });
+}
+
+// ============================================================
+// ПОЛНОЭКРАННЫЙ ПРОСМОТР АВАТАРКИ СЛЕВА (без затемнения)
+// ============================================================
+
+function showAvatarPreview(src, name) {
+  // Удаляем старый предпросмотр, если есть
+  const old = document.getElementById('avatar-preview-container');
+  if (old) old.remove();
+
+  const container = document.createElement('div');
+  container.id = 'avatar-preview-container';
+  container.className = 'avatar-preview-container';
+
+  let content = '';
+  if (src) {
+    content = `<img src="${src}" class="avatar-preview-image" alt="${escHtml(name)}">`;
+  } else {
+    content = `<div class="avatar-preview-placeholder">${escHtml(name)}<br><span style="font-size:14px;">нет аватарки</span></div>`;
+  }
+
+  container.innerHTML = `
+    <div class="avatar-preview-box">
+      <button class="avatar-preview-close" id="avatarPreviewClose">✕</button>
+      ${content}
+      <div class="avatar-preview-name">${escHtml(name)}</div>
+    </div>
+  `;
+
+  document.body.appendChild(container);
+
+  // Закрытие по крестику
+  document.getElementById('avatarPreviewClose').addEventListener('click', () => {
+    container.remove();
+  });
+
+  // Закрытие по клику вне изображения (по фону)
+  container.addEventListener('click', (e) => {
+    if (e.target === container) container.remove();
   });
 }

@@ -92,10 +92,16 @@ document.addEventListener('DOMContentLoaded', async function() {
 
 window.renderMainPage = async function() {
   const main = document.getElementById('main-content');
+  // Убираем режим чата, возвращаем стандартные стили (определены в CSS)
+  main.classList.remove('chat-mode');
+  // Если вы ранее меняли стили через style, сбросьте их:
+  main.style.display = '';        // вернёт к CSS-значению (block)
+  main.style.padding = '';        // вернёт к 28px 30px
+  main.style.overflow = '';       // вернёт к auto
+
   main.innerHTML = `
     <div style="display:flex; flex-direction:column; height:100%;">
-      <h1 style="margin-bottom:8px;">🏠 Главная</h1>
-      <p style="color:#9a9aa8; margin-bottom:20px;">Ваши последние чаты</p>
+      <h1 style="margin-bottom:4px; font-size:28px;">Недавние чаты</h1>
       <div id="recent-chats-list" style="flex:1; overflow-y:auto; display:flex; flex-direction:column; gap:10px;">
         <p style="color:#666;">Загрузка...</p>
       </div>
