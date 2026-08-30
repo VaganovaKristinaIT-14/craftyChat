@@ -2,6 +2,18 @@
 // APP — навигация и общие функции
 // ============================================================
 
+function openCentralPanel(title, renderFn) {
+  const central = document.getElementById('central-panel');
+  // Закрываем для анимации
+  central.classList.remove('open');
+  setTimeout(() => {
+    const titleEl = central.querySelector('#central-panel-title');
+    if (titleEl) titleEl.textContent = title;
+    if (typeof renderFn === 'function') renderFn();
+    central.classList.add('open');
+  }, 250);
+}
+
 document.addEventListener('DOMContentLoaded', async function() {
   // Закрытие панелей по клику на крестик
   document.querySelectorAll('.close-panel').forEach(btn => {
@@ -23,6 +35,7 @@ document.addEventListener('DOMContentLoaded', async function() {
       menuBtns.forEach(b => b.classList.remove('active'));
       this.classList.add('active');
 
+      // Закрываем все панели (боковые и центральную)
       document.getElementById('presets-panel').classList.remove('open');
       document.getElementById('characters-panel').classList.remove('open');
       document.getElementById('central-panel').classList.remove('open');
@@ -34,25 +47,13 @@ document.addEventListener('DOMContentLoaded', async function() {
         document.getElementById('characters-panel').classList.add('open');
         if (typeof renderCharactersPanel === 'function') renderCharactersPanel();
       } else if (menu === 'background') {
-        const central = document.getElementById('central-panel');
-        central.querySelector('#central-panel-title').textContent = '🖼️ Фоны';
-        central.classList.add('open');
-        if (typeof renderBackgroundPanel === 'function') renderBackgroundPanel();
+        openCentralPanel('🖼️ Фоны', renderBackgroundPanel);
       } else if (menu === 'lore') {
-        const central = document.getElementById('central-panel');
-        central.querySelector('#central-panel-title').textContent = '📖 Лорбуки';
-        central.classList.add('open');
-        if (typeof renderLorebooksPanel === 'function') renderLorebooksPanel();
+        openCentralPanel('📖 Лорбуки', renderLorebooksPanel);
       } else if (menu === 'summary') {
-        const central = document.getElementById('central-panel');
-        central.querySelector('#central-panel-title').textContent = '📝 Саммари';
-        central.classList.add('open');
-        if (typeof renderSummaryPanel === 'function') renderSummaryPanel();
+        openCentralPanel('📝 Саммари', renderSummaryPanel);
       } else if (menu === 'personas') {
-        const central = document.getElementById('central-panel');
-        central.querySelector('#central-panel-title').textContent = '👤 Персоны';
-        central.classList.add('open');
-        if (typeof renderPersonasPanel === 'function') renderPersonasPanel();
+        openCentralPanel('👤 Персоны', renderPersonasPanel);
       }
     });
   });
@@ -62,8 +63,6 @@ document.addEventListener('DOMContentLoaded', async function() {
     const panels = ['presets-panel', 'characters-panel', 'central-panel'];
     const isInside = panels.some(id => document.getElementById(id).contains(e.target));
     const isBtn = e.target.closest('.menu-btn') || e.target.closest('.close-panel');
-    // Клики по модалкам подтверждения/ввода, лайтбоксу, тостам и модалке чатов
-    // не должны закрывать боковые/центральную панель у них "под низом".
     const isOverlay = e.target.closest('.app-modal-overlay')
       || e.target.closest('.lightbox-overlay')
       || e.target.closest('.toast-container')
@@ -92,12 +91,10 @@ document.addEventListener('DOMContentLoaded', async function() {
 
 window.renderMainPage = async function() {
   const main = document.getElementById('main-content');
-  // Убираем режим чата, возвращаем стандартные стили (определены в CSS)
   main.classList.remove('chat-mode');
-  // Если вы ранее меняли стили через style, сбросьте их:
-  main.style.display = '';        // вернёт к CSS-значению (block)
-  main.style.padding = '';        // вернёт к 28px 30px
-  main.style.overflow = '';       // вернёт к auto
+  main.style.display = '';
+  main.style.padding = '';
+  main.style.overflow = '';
 
   main.innerHTML = `
     <div style="display:flex; flex-direction:column; height:100%;">

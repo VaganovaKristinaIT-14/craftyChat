@@ -2,6 +2,8 @@
 // PERSONAS — управление персонами (User)
 // ============================================================
 
+
+
 let currentPersonaPage = 1;
 let selectedPersonaId = null;
 const PERSONA_PER_PAGE = 10;
@@ -63,6 +65,7 @@ async function renderPersonasPanel() {
     // Создать
     document.getElementById('createPersonaBtn')?.addEventListener('click', async function() {
       const newP = await createPersona({ name: 'Новая персона', description: '' });
+      window.markDirty('personas');
       selectedPersonaId = newP.id;
       await activatePersona(newP.id);
       renderPersonasPanel();
@@ -81,6 +84,7 @@ async function renderPersonasPanel() {
           const imported = JSON.parse(text);
           if (!imported.name) { showToast('Неверный формат', 'error'); return; }
           const newP = await importPersona(imported);
+          window.markDirty('personas');
           selectedPersonaId = newP.id;
           await activatePersona(newP.id);
           renderPersonasPanel();
@@ -176,6 +180,7 @@ function attachPersonaDetailHandlers() {
     const newName = await showPrompt('Новое имя персоны', persona.name, { title: 'Переименовать персону' });
     if (newName) {
       await updatePersona(selectedPersonaId, { name: newName });
+      window.markDirty('personas');
       renderPersonasPanel();
       showToast('Переименовано', 'success');
     }
@@ -198,6 +203,7 @@ function attachPersonaDetailHandlers() {
     if (!persona) return;
     if (!(await showConfirm(`Удалить персону "${persona.name}"? Это действие необратимо.`, { title: 'Удаление персоны', okText: 'Удалить' }))) return;
     await deletePersona(selectedPersonaId);
+    window.markDirty('personas');
     selectedPersonaId = null;
     renderPersonasPanel();
     showToast('Персона удалена', 'success');
@@ -233,6 +239,7 @@ function attachPersonaDetailHandlers() {
           const blob = await fetch(thumb).then(r => r.blob());
           const fileObj = new File([blob], 'avatar.jpg', { type: 'image/jpeg' });
           await uploadPersonaAvatar(selectedPersonaId, fileObj);
+          window.markDirty('personas');
           renderPersonasPanel();
           showToast('Аватар обновлён', 'success');
         });
@@ -246,6 +253,7 @@ function attachPersonaDetailHandlers() {
     if (!selectedPersonaId) return;
     const val = this.value;
     await updatePersona(selectedPersonaId, { description: val });
+    window.markDirty('personas');
   }, 500));
 
   document.getElementById('linkCharBtn')?.addEventListener('click', async function() {
@@ -294,6 +302,7 @@ function attachPersonaDetailHandlers() {
       const charId = this.dataset.charId;
       try {
         await linkPersonaToCharacter(selectedPersonaId, charId);
+        window.markDirty('personas');
         overlay.remove();
         renderPersonasPanel();
         showToast('Персонаж привязан', 'success');
@@ -319,8 +328,10 @@ function attachPersonaDetailHandlers() {
       if (!charId) return;
       if (!(await showConfirm('Отвязать персонажа от этой персоны?', { title: 'Отвязать персонажа', okText: 'Отвязать' }))) return;
       await unlinkPersonaFromCharacter(selectedPersonaId, charId);
+      window.markDirty('personas');
       renderPersonasPanel();
       showToast('Отвязано', 'success');
     });
   });
 }
+

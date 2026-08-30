@@ -2,6 +2,8 @@
 // PRESETS — управление пресетами
 // ============================================================
 
+
+
 function getActiveCollectionFrom(data) {
   if (!data || !data.collections || data.collections.length === 0) return null;
   return data.collections.find(c => c.id === data.activeCollectionId) || data.collections[0];
@@ -66,14 +68,19 @@ async function renderPresetsPanel() {
     `;
 
     // Обработчики (все с debounce / async)
+
+    // Переключение коллекции
     document.getElementById('collectionSelect')?.addEventListener('change', async function(e) {
       e.stopPropagation();
       const d = await getPresetsData();
       d.activeCollectionId = this.value;
       await savePresetsData(d);
+      // метим dirty, чтобы при следующем открытии обновить список коллекций
+      window.markDirty('presets');
       renderPresetsPanel();
     });
 
+    // Создать коллекцию
     document.getElementById('addCollectionBtn')?.addEventListener('click', async function(e) {
       e.stopPropagation();
       const name = await showPrompt('Введите название нового сборника', 'Новый сборник', { title: 'Новый сборник' });
@@ -83,10 +90,12 @@ async function renderPresetsPanel() {
       d.collections.push(newCol);
       d.activeCollectionId = newCol.id;
       await savePresetsData(d);
+      window.markDirty('presets');
       renderPresetsPanel();
       showToast('Сборник создан', 'success');
     });
 
+    // Переименовать коллекцию
     document.getElementById('renameCollectionBtn')?.addEventListener('click', async function(e) {
       e.stopPropagation();
       const d = await getPresetsData();
@@ -96,10 +105,12 @@ async function renderPresetsPanel() {
       if (!newName) return;
       col.name = newName;
       await savePresetsData(d);
+      window.markDirty('presets');
       renderPresetsPanel();
       showToast('Сборник переименован', 'success');
     });
 
+    // Удалить коллекцию
     document.getElementById('deleteCollectionBtn')?.addEventListener('click', async function(e) {
       e.stopPropagation();
       const d = await getPresetsData();
@@ -113,10 +124,12 @@ async function renderPresetsPanel() {
       d.collections = d.collections.filter(c => c.id !== col.id);
       d.activeCollectionId = d.collections[0].id;
       await savePresetsData(d);
+      window.markDirty('presets');
       renderPresetsPanel();
       showToast('Сборник удалён', 'success');
     });
 
+    // Экспорт (не меняет данные – markDirty не нужен)
     document.getElementById('exportCollectionBtn')?.addEventListener('click', async function(e) {
       e.stopPropagation();
       const d = await getPresetsData();
@@ -133,6 +146,7 @@ async function renderPresetsPanel() {
       showToast('Сборник экспортирован', 'success');
     });
 
+    // Импорт коллекции
     document.getElementById('importCollectionBtn')?.addEventListener('click', function(e) {
       e.stopPropagation();
       const input = document.createElement('input');
@@ -154,6 +168,7 @@ async function renderPresetsPanel() {
             d.collections.push(newCol);
             d.activeCollectionId = newCol.id;
             await savePresetsData(d);
+            window.markDirty('presets');
             renderPresetsPanel();
             showToast('Сборник импортирован', 'success');
           } catch (err) {
@@ -165,6 +180,7 @@ async function renderPresetsPanel() {
       input.click();
     });
 
+    // Изменение лимита токенов
     document.getElementById('tokenLimit')?.addEventListener('input', debounce(async function(e) {
       document.getElementById('tokenLimitDisplay').textContent = this.value;
       const d = await getPresetsData();
@@ -172,27 +188,33 @@ async function renderPresetsPanel() {
       if (col) {
         col.tokenLimit = parseInt(this.value);
         await savePresetsData(d);
+        window.markDirty('presets');
       }
     }, 400));
 
+    // Изменение основного промпта
     document.getElementById('mainPrompt')?.addEventListener('input', debounce(async function() {
       const d = await getPresetsData();
       const col = getActiveCollectionFrom(d);
       if (col) {
         col.mainPrompt = this.value;
         await savePresetsData(d);
+        window.markDirty('presets');
       }
     }, 500));
 
+    // Изменение дополнительного промпта
     document.getElementById('extraPrompt')?.addEventListener('input', debounce(async function() {
       const d = await getPresetsData();
       const col = getActiveCollectionFrom(d);
       if (col) {
         col.extraPrompt = this.value;
         await savePresetsData(d);
+        window.markDirty('presets');
       }
     }, 500));
 
+    // Добавить пресет
     document.getElementById('addPresetBtn')?.addEventListener('click', async function(e) {
       e.stopPropagation();
       const d = await getPresetsData();
@@ -200,9 +222,11 @@ async function renderPresetsPanel() {
       if (!col) return;
       col.presets.push({ id: generateId(), name: `Preset ${col.presets.length + 1}`, enabled: true, content: '' });
       await savePresetsData(d);
+      window.markDirty('presets');
       renderPresetsPanel();
     });
 
+    // Удалить пресет
     document.querySelectorAll('.delete-preset').forEach(btn => {
       btn.addEventListener('click', async function(e) {
         e.stopPropagation();
@@ -213,10 +237,12 @@ async function renderPresetsPanel() {
         if (!col) return;
         col.presets = col.presets.filter(p => p.id !== id);
         await savePresetsData(d);
+        window.markDirty('presets');
         renderPresetsPanel();
       });
     });
 
+    // Включение/выключение пресета
     document.querySelectorAll('.preset-toggle-checkbox').forEach(cb => {
       cb.addEventListener('change', async function(e) {
         e.stopPropagation();
@@ -229,10 +255,12 @@ async function renderPresetsPanel() {
         if (preset) {
           preset.enabled = this.checked;
           await savePresetsData(d);
+          window.markDirty('presets');
         }
       });
     });
 
+    // Раскрытие/сворачивание содержимого пресета (не меняет данные – markDirty не нужен)
     document.querySelectorAll('.preset-toggle').forEach(span => {
       span.addEventListener('click', function(e) {
         e.stopPropagation();
@@ -243,6 +271,7 @@ async function renderPresetsPanel() {
       });
     });
 
+    // Редактирование содержимого пресета (автосохранение)
     document.querySelectorAll('.preset-content textarea').forEach(textarea => {
       textarea.addEventListener('input', debounce(async function(e) {
         const item = this.closest('.preset-item');
@@ -254,10 +283,12 @@ async function renderPresetsPanel() {
         if (preset) {
           preset.content = this.value;
           await savePresetsData(d);
+          window.markDirty('presets');
         }
       }, 500));
     });
 
+    // Переименовать пресет (кнопка ✎)
     document.querySelectorAll('.edit-preset').forEach(btn => {
       btn.addEventListener('click', async function(e) {
         e.stopPropagation();
@@ -272,6 +303,7 @@ async function renderPresetsPanel() {
         if (!newName) return;
         preset.name = newName;
         await savePresetsData(d);
+        window.markDirty('presets');
         renderPresetsPanel();
       });
     });
@@ -280,3 +312,4 @@ async function renderPresetsPanel() {
     console.error(e);
   }
 }
+

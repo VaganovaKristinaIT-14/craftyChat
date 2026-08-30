@@ -2,6 +2,8 @@
 // LOREBOOKS — полное управление лорбуками (с улучшениями)
 // ============================================================
 
+
+
 let selectedLorebookId = null;
 let expandedEntries = new Set();
 
@@ -122,6 +124,7 @@ async function renderLorebooksPanel() {
       const name = await showPrompt('Название нового мира', '', { title: 'Новый мир' });
       if (name) {
         const newLb = await createLorebook(name);
+        window.markDirty('lorebooks');
         selectedLorebookId = newLb.id;
         renderLorebooksPanel();
         showToast('Мир создан', 'success');
@@ -140,6 +143,7 @@ async function renderLorebooksPanel() {
       const name = await showPrompt('Новое название мира', '', { title: 'Переименовать мир' });
       if (name) {
         await renameLorebook(id, name);
+        window.markDirty('lorebooks');
         renderLorebooksPanel();
         showToast('Мир переименован', 'success');
       }
@@ -149,6 +153,7 @@ async function renderLorebooksPanel() {
     document.getElementById('duplicateLorebookBtn')?.addEventListener('click', async () => {
       const id = document.getElementById('lorebookSelect').value;
       const newLb = await duplicateLorebook(id);
+      window.markDirty('lorebooks');
       selectedLorebookId = newLb.id;
       renderLorebooksPanel();
       showToast('Мир скопирован', 'success');
@@ -159,6 +164,7 @@ async function renderLorebooksPanel() {
       const id = document.getElementById('lorebookSelect').value;
       if (!(await showConfirm('Удалить мир и все его записи? Это действие необратимо.', { title: 'Удаление мира', okText: 'Удалить' }))) return;
       await deleteLorebook(id);
+      window.markDirty('lorebooks');
       selectedLorebookId = null;
       renderLorebooksPanel();
       showToast('Мир удалён', 'success');
@@ -188,6 +194,7 @@ async function renderLorebooksPanel() {
           const imported = JSON.parse(text);
           if (!imported.name) { showToast('Неверный формат', 'error'); return; }
           const newLb = await importLorebook(imported);
+          window.markDirty('lorebooks');
           selectedLorebookId = newLb.id;
           renderLorebooksPanel();
           showToast('Мир импортирован', 'success');
@@ -200,6 +207,7 @@ async function renderLorebooksPanel() {
     document.getElementById('addEntryBtn')?.addEventListener('click', async () => {
       const id = document.getElementById('lorebookSelect').value;
       await createLoreEntry(id, { name: 'Новая запись' });
+      window.markDirty('lorebooks');
       renderLorebooksPanel();
       showToast('Запись добавлена', 'success');
     });
@@ -215,6 +223,7 @@ async function renderLorebooksPanel() {
         const newName = await showPrompt('Введите новое название записи', currentName, { title: 'Переименовать запись' });
         if (newName && newName.trim()) {
           await updateLoreEntry(worldId, entryId, { name: newName.trim() });
+          window.markDirty('lorebooks');
           renderLorebooksPanel();
           showToast('Запись переименована', 'success');
         }
@@ -256,6 +265,7 @@ async function renderLorebooksPanel() {
         const worldId = document.getElementById('lorebookSelect').value;
         if (!(await showConfirm('Удалить запись?', { title: 'Удаление записи', okText: 'Удалить' }))) return;
         await deleteLoreEntry(worldId, entryId);
+        window.markDirty('lorebooks');
         renderLorebooksPanel();
         showToast('Запись удалена', 'success');
       });
@@ -301,6 +311,7 @@ async function renderLorebooksPanel() {
                       this.classList.contains('entry-status') ? 'status' : 'content';
         const val = this.type === 'number' ? parseInt(this.value) : this.value;
         await updateLoreEntry(worldId, entryId, { [field]: val });
+        window.markDirty('lorebooks');
         // Если изменился статус или приоритет, перерисовываем для обновления бейджей
         if (field === 'status' || field === 'priority') {
           renderLorebooksPanel();
@@ -317,3 +328,4 @@ async function renderLorebooksPanel() {
     console.error(e);
   }
 }
+

@@ -233,9 +233,10 @@ nav {
 }
 
 /* ===== ЦЕНТРАЛЬНАЯ ПАНЕЛЬ (под верхней панелью) ===== */
+
 .central-panel {
   position: absolute;
-  top: 60px;                     /* высота верхней панели — подберите под свою */
+  top: 60px;
   left: 0;
   right: 0;
   bottom: 0;
@@ -246,22 +247,24 @@ nav {
   padding: 20px;
   border-radius: 0 0 12px 12px;
   overflow-y: auto;
-  transform: scaleY(0);
-  transform-origin: top center;
-  opacity: 0;
-  transition: transform 0.65s cubic-bezier(0.22, 1, 0.36, 1),
-              opacity 0.5s ease;
-  pointer-events: none;
   width: 100%;
-  max-width: 900px;              /* ширина центрального контейнера */
+  max-width: 900px;
   left: 50%;
-  transform: translateX(-50%) scaleY(0);
+  transform: translateX(-50%);
+  /* НОВЫЕ СТРОКИ: анимация высоты */
+  max-height: 0;           /* начальная высота 0 */
+  opacity: 0;
+  transition: max-height 0.5s cubic-bezier(0.22, 1, 0.36, 1),
+              opacity 0.4s ease 0.1s;
+  pointer-events: none;
 }
 
 .central-panel.open {
-  transform: translateX(-50%) scaleY(1);
+  max-height: 80vh;        /* или 100%, но лучше ограничить */
   opacity: 1;
   pointer-events: auto;
+  transition: max-height 0.5s cubic-bezier(0.22, 1, 0.36, 1),
+              opacity 0.3s ease;
 }
 
 .panel-header {

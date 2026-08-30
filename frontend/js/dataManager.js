@@ -1,8 +1,44 @@
 // ============================================================
-// DATA MANAGER — все запросы к API, хранение состояния
+// DATA MANAGER — все запросы к API, хранение состояния (без модулей)
 // ============================================================
 
 const API_BASE = '/api';
+
+// ---------- КЕШ И ФЛАГИ DIRTY (глобальные) ----------
+const CACHE = {
+  lorebooks: null,
+  characters: null,
+  personas: null,
+  background: null,
+  presets: null,
+};
+
+const DIRTY = {
+  lorebooks: true,
+  characters: true,
+  personas: true,
+  background: true,
+  presets: true,
+};
+
+function markDirty(entity) {
+  if (DIRTY.hasOwnProperty(entity)) {
+    DIRTY[entity] = true;
+    if (CACHE.hasOwnProperty(entity)) {
+      CACHE[entity] = null;
+    }
+    for (let key in CACHE) {
+      if (key.startsWith(entity + '_')) {
+        CACHE[key] = null;
+      }
+    }
+  }
+}
+
+// Делаем доступным глобально
+window.CACHE = CACHE;
+window.DIRTY = DIRTY;
+window.markDirty = markDirty;
 
 // ---------- Вспомогательные ----------
 function generateId() {
@@ -23,7 +59,7 @@ function debounce(fn, delay = 400) {
 }
 window.debounce = debounce;
 
-// ---------- TOAST (улучшенный) ----------
+// ---------- TOAST ----------
 const TOAST_TYPES = {
   success: { icon: '✅', title: 'Готово', className: 'toast-success' },
   error:   { icon: '❌', title: 'Ошибка', className: 'toast-error' },
@@ -109,24 +145,81 @@ async function apiRequest(url, options = {}) {
 // ============================================================
 // ПРЕСЕТЫ
 // ============================================================
-async function getPresetsData() { return apiRequest(`${API_BASE}/presets`); }
-async function savePresetsData(data) { return apiRequest(`${API_BASE}/presets`, { method: 'PUT', body: JSON.stringify(data) }); }
-async function createCollection(name) { return apiRequest(`${API_BASE}/presets/collections`, { method: 'POST', body: JSON.stringify({ name }) }); }
-async function renameCollection(id, name) { return apiRequest(`${API_BASE}/presets/collections/${id}`, { method: 'PUT', body: JSON.stringify({ name }) }); }
-async function deleteCollection(id) { return apiRequest(`${API_BASE}/presets/collections/${id}`, { method: 'DELETE' }); }
+async function getPresetsData(forceRefresh = false) {
+  if (!forceRefresh && CACHE.presets !== null && !DIRTY.presets) {
+    return CACHE.presets;
+  }
+  const data = await apiRequest(`${API_BASE}/presets`);
+  CACHE.presets = data;
+  DIRTY.presets = false;
+  return data;
+}
+async function savePresetsData(data) {
+  DIRTY.presets = true;
+  CACHE.presets = null;
+  return apiRequest(`${API_BASE}/presets`, { method: 'PUT', body: JSON.stringify(data) });
+}
+async function createCollection(name) {
+  DIRTY.presets = true;
+  CACHE.presets = null;
+  return apiRequest(`${API_BASE}/presets/collections`, { method: 'POST', body: JSON.stringify({ name }) });
+}
+async function renameCollection(id, name) {
+  DIRTY.presets = true;
+  CACHE.presets = null;
+  return apiRequest(`${API_BASE}/presets/collections/${id}`, { method: 'PUT', body: JSON.stringify({ name }) });
+}
+async function deleteCollection(id) {
+  DIRTY.presets = true;
+  CACHE.presets = null;
+  return apiRequest(`${API_BASE}/presets/collections/${id}`, { method: 'DELETE' });
+}
 async function activateCollection(id) { return apiRequest(`${API_BASE}/presets/collections/${id}/activate`, { method: 'POST' }); }
-async function addMiniPreset(collectionId, name, content) { return apiRequest(`${API_BASE}/presets/collections/${collectionId}/presets`, { method: 'POST', body: JSON.stringify({ name, content }) }); }
-async function updateMiniPreset(collectionId, presetId, data) { return apiRequest(`${API_BASE}/presets/collections/${collectionId}/presets/${presetId}`, { method: 'PUT', body: JSON.stringify(data) }); }
-async function deleteMiniPreset(collectionId, presetId) { return apiRequest(`${API_BASE}/presets/collections/${collectionId}/presets/${presetId}`, { method: 'DELETE' }); }
+async function addMiniPreset(collectionId, name, content) {
+  DIRTY.presets = true;
+  CACHE.presets = null;
+  return apiRequest(`${API_BASE}/presets/collections/${collectionId}/presets`, { method: 'POST', body: JSON.stringify({ name, content }) });
+}
+async function updateMiniPreset(collectionId, presetId, data) {
+  DIRTY.presets = true;
+  CACHE.presets = null;
+  return apiRequest(`${API_BASE}/presets/collections/${collectionId}/presets/${presetId}`, { method: 'PUT', body: JSON.stringify(data) });
+}
+async function deleteMiniPreset(collectionId, presetId) {
+  DIRTY.presets = true;
+  CACHE.presets = null;
+  return apiRequest(`${API_BASE}/presets/collections/${collectionId}/presets/${presetId}`, { method: 'DELETE' });
+}
 
 // ============================================================
-// ПЕРСОНАЖИ (CHARACTERS)
+// ПЕРСОНАЖИ
 // ============================================================
-async function getCharacters(page = 1, perPage = 10) { return apiRequest(`${API_BASE}/characters?page=${page}&per_page=${perPage}`); }
+async function getCharacters(page = 1, perPage = 10, forceRefresh = false) {
+  const key = `chars_${page}_${perPage}`;
+  if (!forceRefresh && CACHE[key] !== undefined && CACHE[key] !== null && !DIRTY.characters) {
+    return CACHE[key];
+  }
+  const data = await apiRequest(`${API_BASE}/characters?page=${page}&per_page=${perPage}`);
+  CACHE[key] = data;
+  DIRTY.characters = false;
+  return data;
+}
 async function getCharacter(id) { return apiRequest(`${API_BASE}/characters/${id}`); }
-async function createCharacter(data) { return apiRequest(`${API_BASE}/characters`, { method: 'POST', body: JSON.stringify(data) }); }
-async function updateCharacter(id, data) { return apiRequest(`${API_BASE}/characters/${id}`, { method: 'PUT', body: JSON.stringify(data) }); }
-async function deleteCharacter(id) { return apiRequest(`${API_BASE}/characters/${id}`, { method: 'DELETE' }); }
+async function createCharacter(data) {
+  DIRTY.characters = true;
+  for (let key in CACHE) if (key.startsWith('chars_')) CACHE[key] = null;
+  return apiRequest(`${API_BASE}/characters`, { method: 'POST', body: JSON.stringify(data) });
+}
+async function updateCharacter(id, data) {
+  DIRTY.characters = true;
+  for (let key in CACHE) if (key.startsWith('chars_')) CACHE[key] = null;
+  return apiRequest(`${API_BASE}/characters/${id}`, { method: 'PUT', body: JSON.stringify(data) });
+}
+async function deleteCharacter(id) {
+  DIRTY.characters = true;
+  for (let key in CACHE) if (key.startsWith('chars_')) CACHE[key] = null;
+  return apiRequest(`${API_BASE}/characters/${id}`, { method: 'DELETE' });
+}
 async function uploadCharacterAvatar(id, file) {
   const form = new FormData();
   form.append('file', file);
@@ -136,9 +229,15 @@ async function uploadCharacterAvatar(id, file) {
     showToast(err.error || 'Ошибка загрузки', 'error');
     throw new Error(err.error);
   }
+  DIRTY.characters = true;
+  for (let key in CACHE) if (key.startsWith('chars_')) CACHE[key] = null;
   return res.json();
 }
-async function importCharacter(data) { return apiRequest(`${API_BASE}/characters/import`, { method: 'POST', body: JSON.stringify(data) }); }
+async function importCharacter(data) {
+  DIRTY.characters = true;
+  for (let key in CACHE) if (key.startsWith('chars_')) CACHE[key] = null;
+  return apiRequest(`${API_BASE}/characters/import`, { method: 'POST', body: JSON.stringify(data) });
+}
 async function exportCharacter(id) {
   const res = await fetch(`${API_BASE}/characters/${id}/export`);
   if (!res.ok) throw new Error('Export failed');
@@ -146,13 +245,34 @@ async function exportCharacter(id) {
 }
 
 // ============================================================
-// ПЕРСОНЫ (PERSONAS)
+// ПЕРСОНЫ
 // ============================================================
-async function getPersonas(page = 1, perPage = 10) { return apiRequest(`${API_BASE}/personas?page=${page}&per_page=${perPage}`); }
+async function getPersonas(page = 1, perPage = 10, forceRefresh = false) {
+  const key = `personas_${page}_${perPage}`;
+  if (!forceRefresh && CACHE[key] !== undefined && CACHE[key] !== null && !DIRTY.personas) {
+    return CACHE[key];
+  }
+  const data = await apiRequest(`${API_BASE}/personas?page=${page}&per_page=${perPage}`);
+  CACHE[key] = data;
+  DIRTY.personas = false;
+  return data;
+}
 async function getPersona(id) { return apiRequest(`${API_BASE}/personas/${id}`); }
-async function createPersona(data) { return apiRequest(`${API_BASE}/personas`, { method: 'POST', body: JSON.stringify(data) }); }
-async function updatePersona(id, data) { return apiRequest(`${API_BASE}/personas/${id}`, { method: 'PUT', body: JSON.stringify(data) }); }
-async function deletePersona(id) { return apiRequest(`${API_BASE}/personas/${id}`, { method: 'DELETE' }); }
+async function createPersona(data) {
+  DIRTY.personas = true;
+  for (let key in CACHE) if (key.startsWith('personas_')) CACHE[key] = null;
+  return apiRequest(`${API_BASE}/personas`, { method: 'POST', body: JSON.stringify(data) });
+}
+async function updatePersona(id, data) {
+  DIRTY.personas = true;
+  for (let key in CACHE) if (key.startsWith('personas_')) CACHE[key] = null;
+  return apiRequest(`${API_BASE}/personas/${id}`, { method: 'PUT', body: JSON.stringify(data) });
+}
+async function deletePersona(id) {
+  DIRTY.personas = true;
+  for (let key in CACHE) if (key.startsWith('personas_')) CACHE[key] = null;
+  return apiRequest(`${API_BASE}/personas/${id}`, { method: 'DELETE' });
+}
 async function uploadPersonaAvatar(id, file) {
   const form = new FormData();
   form.append('file', file);
@@ -162,12 +282,26 @@ async function uploadPersonaAvatar(id, file) {
     showToast(err.error || 'Ошибка загрузки', 'error');
     throw new Error(err.error);
   }
+  DIRTY.personas = true;
+  for (let key in CACHE) if (key.startsWith('personas_')) CACHE[key] = null;
   return res.json();
 }
 async function activatePersona(id) { return apiRequest(`${API_BASE}/personas/${id}/activate`, { method: 'POST' }); }
-async function linkPersonaToCharacter(personaId, characterId) { return apiRequest(`${API_BASE}/personas/${personaId}/link-character`, { method: 'POST', body: JSON.stringify({ character_id: characterId }) }); }
-async function unlinkPersonaFromCharacter(personaId, characterId) { return apiRequest(`${API_BASE}/personas/${personaId}/unlink-character`, { method: 'POST', body: JSON.stringify({ character_id: characterId }) }); }
-async function importPersona(data) { return apiRequest(`${API_BASE}/personas/import`, { method: 'POST', body: JSON.stringify(data) }); }
+async function linkPersonaToCharacter(personaId, characterId) {
+  DIRTY.personas = true;
+  for (let key in CACHE) if (key.startsWith('personas_')) CACHE[key] = null;
+  return apiRequest(`${API_BASE}/personas/${personaId}/link-character`, { method: 'POST', body: JSON.stringify({ character_id: characterId }) });
+}
+async function unlinkPersonaFromCharacter(personaId, characterId) {
+  DIRTY.personas = true;
+  for (let key in CACHE) if (key.startsWith('personas_')) CACHE[key] = null;
+  return apiRequest(`${API_BASE}/personas/${personaId}/unlink-character`, { method: 'POST', body: JSON.stringify({ character_id: characterId }) });
+}
+async function importPersona(data) {
+  DIRTY.personas = true;
+  for (let key in CACHE) if (key.startsWith('personas_')) CACHE[key] = null;
+  return apiRequest(`${API_BASE}/personas/import`, { method: 'POST', body: JSON.stringify(data) });
+}
 async function exportPersona(id) {
   const res = await fetch(`${API_BASE}/personas/${id}/export`);
   if (!res.ok) throw new Error('Export failed');
@@ -176,29 +310,127 @@ async function exportPersona(id) {
 async function getPersonaForCharacter(characterId) { return apiRequest(`${API_BASE}/personas/for-character/${characterId}`); }
 
 // ============================================================
-// ЛОРБУКИ (WORLD INFO)
+// ЛОРБУКИ
 // ============================================================
-async function getLorebooks() { return apiRequest(`${API_BASE}/lorebooks`); }
+async function getLorebooks(forceRefresh = false) {
+  if (!forceRefresh && CACHE.lorebooks !== null && !DIRTY.lorebooks) {
+    return CACHE.lorebooks;
+  }
+  const data = await apiRequest(`${API_BASE}/lorebooks`);
+  CACHE.lorebooks = data;
+  DIRTY.lorebooks = false;
+  return data;
+}
 async function getLorebook(id) { return apiRequest(`${API_BASE}/lorebooks/${id}`); }
-async function createLorebook(name) { return apiRequest(`${API_BASE}/lorebooks`, { method: 'POST', body: JSON.stringify({ name }) }); }
-async function renameLorebook(id, name) { return apiRequest(`${API_BASE}/lorebooks/${id}`, { method: 'PUT', body: JSON.stringify({ name }) }); }
-async function duplicateLorebook(id) { return apiRequest(`${API_BASE}/lorebooks/${id}/duplicate`, { method: 'POST' }); }
-async function deleteLorebook(id) { return apiRequest(`${API_BASE}/lorebooks/${id}`, { method: 'DELETE' }); }
-async function importLorebook(data) { return apiRequest(`${API_BASE}/lorebooks/import`, { method: 'POST', body: JSON.stringify(data) }); }
+async function createLorebook(name) {
+  DIRTY.lorebooks = true;
+  CACHE.lorebooks = null;
+  return apiRequest(`${API_BASE}/lorebooks`, { method: 'POST', body: JSON.stringify({ name }) });
+}
+async function renameLorebook(id, name) {
+  DIRTY.lorebooks = true;
+  CACHE.lorebooks = null;
+  return apiRequest(`${API_BASE}/lorebooks/${id}`, { method: 'PUT', body: JSON.stringify({ name }) });
+}
+async function duplicateLorebook(id) {
+  DIRTY.lorebooks = true;
+  CACHE.lorebooks = null;
+  return apiRequest(`${API_BASE}/lorebooks/${id}/duplicate`, { method: 'POST' });
+}
+async function deleteLorebook(id) {
+  DIRTY.lorebooks = true;
+  CACHE.lorebooks = null;
+  return apiRequest(`${API_BASE}/lorebooks/${id}`, { method: 'DELETE' });
+}
+async function importLorebook(data) {
+  DIRTY.lorebooks = true;
+  CACHE.lorebooks = null;
+  return apiRequest(`${API_BASE}/lorebooks/import`, { method: 'POST', body: JSON.stringify(data) });
+}
 async function exportLorebook(id) {
   const res = await fetch(`${API_BASE}/lorebooks/${id}/export`);
   if (!res.ok) throw new Error('Export failed');
   return res.json();
 }
-async function createLoreEntry(lorebookId, data = {}) { return apiRequest(`${API_BASE}/lorebooks/${lorebookId}/entries`, { method: 'POST', body: JSON.stringify(data) }); }
-async function updateLoreEntry(lorebookId, entryId, data) { return apiRequest(`${API_BASE}/lorebooks/${lorebookId}/entries/${entryId}`, { method: 'PUT', body: JSON.stringify(data) }); }
-async function deleteLoreEntry(lorebookId, entryId) { return apiRequest(`${API_BASE}/lorebooks/${lorebookId}/entries/${entryId}`, { method: 'DELETE' }); }
-async function reorderLoreEntries(lorebookId, order) { return apiRequest(`${API_BASE}/lorebooks/${lorebookId}/entries/reorder`, { method: 'PUT', body: JSON.stringify({ order }) }); }
-async function addKeywordToEntry(lorebookId, entryId, keyword) { return apiRequest(`${API_BASE}/lorebooks/${lorebookId}/entries/${entryId}/keywords`, { method: 'POST', body: JSON.stringify({ keyword }) }); }
-async function removeKeywordFromEntry(lorebookId, entryId, keyword) { return apiRequest(`${API_BASE}/lorebooks/${lorebookId}/entries/${entryId}/keywords/${encodeURIComponent(keyword)}`, { method: 'DELETE' }); }
+async function createLoreEntry(lorebookId, data = {}) {
+  DIRTY.lorebooks = true;
+  CACHE.lorebooks = null;
+  return apiRequest(`${API_BASE}/lorebooks/${lorebookId}/entries`, { method: 'POST', body: JSON.stringify(data) });
+}
+async function updateLoreEntry(lorebookId, entryId, data) {
+  DIRTY.lorebooks = true;
+  CACHE.lorebooks = null;
+  return apiRequest(`${API_BASE}/lorebooks/${lorebookId}/entries/${entryId}`, { method: 'PUT', body: JSON.stringify(data) });
+}
+async function deleteLoreEntry(lorebookId, entryId) {
+  DIRTY.lorebooks = true;
+  CACHE.lorebooks = null;
+  return apiRequest(`${API_BASE}/lorebooks/${lorebookId}/entries/${entryId}`, { method: 'DELETE' });
+}
+async function reorderLoreEntries(lorebookId, order) {
+  DIRTY.lorebooks = true;
+  CACHE.lorebooks = null;
+  return apiRequest(`${API_BASE}/lorebooks/${lorebookId}/entries/reorder`, { method: 'PUT', body: JSON.stringify({ order }) });
+}
+async function addKeywordToEntry(lorebookId, entryId, keyword) {
+  DIRTY.lorebooks = true;
+  CACHE.lorebooks = null;
+  return apiRequest(`${API_BASE}/lorebooks/${lorebookId}/entries/${entryId}/keywords`, { method: 'POST', body: JSON.stringify({ keyword }) });
+}
+async function removeKeywordFromEntry(lorebookId, entryId, keyword) {
+  DIRTY.lorebooks = true;
+  CACHE.lorebooks = null;
+  return apiRequest(`${API_BASE}/lorebooks/${lorebookId}/entries/${entryId}/keywords/${encodeURIComponent(keyword)}`, { method: 'DELETE' });
+}
 
 // ============================================================
-// ЧАТЫ
+// ФОНЫ
+// ============================================================
+async function getBackground(forceRefresh = false) {
+  if (!forceRefresh && CACHE.background !== null && !DIRTY.background) {
+    return CACHE.background;
+  }
+  const data = await apiRequest(`${API_BASE}/background`);
+  CACHE.background = data;
+  DIRTY.background = false;
+  return data;
+}
+async function uploadBackground(file) {
+  const form = new FormData();
+  form.append('file', file);
+  const res = await fetch(`${API_BASE}/background/upload`, { method: 'POST', body: form });
+  if (!res.ok) {
+    const err = await res.json();
+    showToast(err.error || 'Ошибка загрузки фона', 'error');
+    throw new Error(err.error);
+  }
+  DIRTY.background = true;
+  CACHE.background = null;
+  return res.json();
+}
+async function selectBackground(id) {
+  DIRTY.background = true;
+  CACHE.background = null;
+  return apiRequest(`${API_BASE}/background/${id}/select`, { method: 'POST' });
+}
+async function deleteBackground(id) {
+  DIRTY.background = true;
+  CACHE.background = null;
+  return apiRequest(`${API_BASE}/background/${id}`, { method: 'DELETE' });
+}
+async function resetBackgrounds() {
+  DIRTY.background = true;
+  CACHE.background = null;
+  return apiRequest(`${API_BASE}/background/reset`, { method: 'POST' });
+}
+async function getFullBackground(id) {
+  const res = await fetch(`${API_BASE}/background/${id}/full`);
+  if (!res.ok) throw new Error('Failed to load full background');
+  return res.json();
+}
+
+// ============================================================
+// ЧАТЫ (без кеша)
 // ============================================================
 async function getRecentChats() { return apiRequest(`${API_BASE}/chats/recent`); }
 async function getChatsByCharacter(characterId) { return apiRequest(`${API_BASE}/chats?character_id=${characterId}`); }
@@ -235,30 +467,6 @@ async function updateSummaryBlock(chatId, blockId, data) { return apiRequest(`${
 async function deleteSummaryBlock(chatId, blockId) { return apiRequest(`${API_BASE}/chats/${chatId}/summary/blocks/${blockId}`, { method: 'DELETE' }); }
 
 // ============================================================
-// ФОНЫ
-// ============================================================
-async function getBackground() { return apiRequest(`${API_BASE}/background`); }
-async function uploadBackground(file) {
-  const form = new FormData();
-  form.append('file', file);
-  const res = await fetch(`${API_BASE}/background/upload`, { method: 'POST', body: form });
-  if (!res.ok) {
-    const err = await res.json();
-    showToast(err.error || 'Ошибка загрузки фона', 'error');
-    throw new Error(err.error);
-  }
-  return res.json();
-}
-async function selectBackground(id) { return apiRequest(`${API_BASE}/background/${id}/select`, { method: 'POST' }); }
-async function deleteBackground(id) { return apiRequest(`${API_BASE}/background/${id}`, { method: 'DELETE' }); }
-async function resetBackgrounds() { return apiRequest(`${API_BASE}/background/reset`, { method: 'POST' }); }
-async function getFullBackground(id) {
-  const res = await fetch(`${API_BASE}/background/${id}/full`);
-  if (!res.ok) throw new Error('Failed to load full background');
-  return res.json();
-}
-
-// ============================================================
 // НАСТРОЙКИ
 // ============================================================
 async function getSettings() { return apiRequest(`${API_BASE}/settings`); }
@@ -292,7 +500,7 @@ function compressImage(dataUrl, maxWidth, maxHeight, quality, callback) {
 window.compressImage = compressImage;
 
 // ============================================================
-// КАСТОМНОЕ ПОДТВЕРЖДЕНИЕ (вместо window.confirm)
+// КАСТОМНОЕ ПОДТВЕРЖДЕНИЕ
 // ============================================================
 function showConfirm(message, options = {}) {
   const { title = 'Подтвердите действие', okText = 'ОК', cancelText = 'Отмена', danger = true } = options;
@@ -332,7 +540,7 @@ function showConfirm(message, options = {}) {
 window.showConfirm = showConfirm;
 
 // ============================================================
-// КАСТОМНЫЙ ПРОМПТ (вместо window.prompt) — для форм с обычным полем ввода
+// КАСТОМНЫЙ ПРОМПТ
 // ============================================================
 function showPrompt(message, defaultValue = '', options = {}) {
   const { title = 'Введите значение', okText = 'Сохранить', cancelText = 'Отмена', multiline = false } = options;
@@ -378,7 +586,7 @@ function showPrompt(message, defaultValue = '', options = {}) {
 window.showPrompt = showPrompt;
 
 // ============================================================
-// ЛАЙТБОКС — полноразмерный просмотр аватарки
+// ЛАЙТБОКС
 // ============================================================
 function openLightbox(src) {
   if (!src) return;

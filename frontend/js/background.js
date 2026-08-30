@@ -1,6 +1,4 @@
-// ============================================================
-// BACKGROUND — управление фонами (с IndexedDB)
-// ============================================================
+
 
 const MAX_THUMBS = 10;
 
@@ -41,6 +39,7 @@ async function renderBackgroundPanel() {
         if (file.size > 5*1024*1024) { showToast('Файл >5 МБ', 'error'); return; }
         try {
           await uploadBackground(file);
+          window.markDirty('background');
           renderBackgroundPanel();
           showToast('Фон загружен', 'success');
         } catch (e) {}
@@ -51,6 +50,7 @@ async function renderBackgroundPanel() {
     document.getElementById('deleteSelectedBgBtn')?.addEventListener('click', async function() {
       if (!selected) return;
       await deleteBackground(selected);
+      window.markDirty('background');
       renderBackgroundPanel();
       showToast('Фон удалён', 'success');
     });
@@ -58,6 +58,7 @@ async function renderBackgroundPanel() {
     document.getElementById('resetBgBtn')?.addEventListener('click', async function() {
       if (!(await showConfirm('Удалить все фоны? Это действие необратимо.', { title: 'Сброс фонов', okText: 'Удалить' }))) return;
       await resetBackgrounds();
+      window.markDirty('background');
       renderBackgroundPanel();
       showToast('Сброшено', 'success');
     });
@@ -67,6 +68,7 @@ async function renderBackgroundPanel() {
         if (e.target.closest('.delete-bg-btn')) return;
         const id = this.dataset.id;
         await selectBackground(id);
+        window.markDirty('background');
         renderBackgroundPanel();
         showToast('Фон применён', 'success');
       });
@@ -77,6 +79,7 @@ async function renderBackgroundPanel() {
         e.stopPropagation();
         const id = this.dataset.id;
         await deleteBackground(id);
+        window.markDirty('background');
         renderBackgroundPanel();
         showToast('Фон удалён', 'success');
       });
@@ -87,3 +90,4 @@ async function renderBackgroundPanel() {
     console.error(e);
   }
 }
+

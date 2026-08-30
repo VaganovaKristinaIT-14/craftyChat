@@ -1,6 +1,4 @@
-// ============================================================
-// CHARACTERS — управление персонажами (Bot)
-// ============================================================
+
 
 let currentCharPage = 1;
 let selectedCharId = null;
@@ -44,7 +42,7 @@ async function renderCharactersPanel() {
     body.innerHTML = html;
 
     // Открытие чата
-    // Стало:
+
 document.querySelectorAll('#charList .card-item').forEach(el => {
   el.addEventListener('click', function(e) {
     if (e.target.closest('.edit-char-btn')) return;
@@ -66,6 +64,7 @@ document.querySelectorAll('#charList .card-item').forEach(el => {
     document.getElementById('createCharBtn')?.addEventListener('click', async function() {
       const newChar = { name: 'Новый персонаж', fields: {} };
       const created = await createCharacter(newChar);
+      window.markDirty('characters');
       selectedCharId = created.id;
       renderCharDetail();
       showToast('Персонаж создан', 'success');
@@ -84,6 +83,7 @@ document.querySelectorAll('#charList .card-item').forEach(el => {
           const imported = JSON.parse(text);
           if (!imported.name) { showToast('Неверный формат файла', 'error'); return; }
           const created = await importCharacter(imported);
+          window.markDirty('characters');
           selectedCharId = created.id;
           renderCharDetail();
           showToast('Персонаж импортирован', 'success');
@@ -158,6 +158,7 @@ async function renderCharDetail() {
       const name = await showPrompt('Новое имя персонажа', char.name, { title: 'Переименовать персонажа' });
       if (name) {
         await updateCharacter(char.id, { name });
+        window.markDirty('characters');
         char = await getCharacter(char.id);
         renderCharDetail();
         showToast('Персонаж переименован', 'success');
@@ -180,6 +181,7 @@ async function renderCharDetail() {
       const data = await exportCharacter(char.id);
       data.name = char.name + ' (копия)';
       const created = await importCharacter(data);
+      window.markDirty('characters');
       selectedCharId = created.id;
       renderCharDetail();
       showToast('Создана копия персонажа', 'success');
@@ -189,6 +191,7 @@ async function renderCharDetail() {
       const ok = await showConfirm(`Удалить персонажа "${char.name}"? Это действие необратимо.`, { title: 'Удаление персонажа', okText: 'Удалить' });
       if (!ok) return;
       await deleteCharacter(char.id);
+      window.markDirty('characters');
       selectedCharId = null;
       renderCharactersPanel();
       showToast('Персонаж удалён', 'success');
@@ -230,6 +233,7 @@ async function renderCharDetail() {
             const blob = await fetch(thumb).then(r => r.blob());
             const fileObj = new File([blob], 'avatar.jpg', { type: 'image/jpeg' });
             await uploadCharacterAvatar(char.id, fileObj);
+            window.markDirty('characters');
             char = await getCharacter(char.id);
             renderCharDetail();
             showToast('Аватар обновлён', 'success');
@@ -248,6 +252,7 @@ async function renderCharDetail() {
         const field = this.dataset.field;
         const val = this.value;
         await updateCharacter(char.id, { fields: { [field]: val } });
+        window.markDirty('characters');
         char.fields[field] = val;
         const total = char.name + Object.values(char.fields).join('');
         const tokens = Math.round(total.length / 3);
@@ -261,3 +266,4 @@ async function renderCharDetail() {
     console.error(e);
   }
 }
+
