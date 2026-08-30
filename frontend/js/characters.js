@@ -24,16 +24,15 @@ async function renderCharactersPanel() {
       <div class="card-list" id="charList">
         ${chars.length === 0 ? '<p style="color:#666;">Нет персонажей</p>' :
           chars.map(c => `
-            <div class="card-item" data-id="${c.id}">
-              <div class="card-avatar">${c.avatar ? `<img src="${c.avatar}">` : '🤖'}</div>
-              <div class="card-info">
-                <div class="name">${escHtml(c.name)}</div>
-                <div class="sub">токенов: ${c.token_count || 0}</div>
-              </div>
-              <button class="copy-id-btn" data-id="${c.id}" title="Скопировать ID персонажа">📋</button>
-              <button class="edit-char-btn btn btn-sm btn-outline" data-id="${c.id}">✎</button>
-            </div>
-          `).join('')}
+  <div class="card-item" data-id="${c.id}">
+    <div class="card-avatar">${c.avatar ? `<img src="${c.avatar}">` : '🤖'}</div>
+    <div class="card-info">
+      <div class="name">${escHtml(c.name)}</div>
+      <div class="sub">токенов: ${c.token_count || 0}</div>
+    </div>
+    <button class="edit-char-btn btn btn-sm btn-outline" data-id="${c.id}">✎</button>
+  </div>
+`).join('')}
       </div>
       <div style="display:flex; justify-content:space-between; padding-top:12px; border-top:1px solid #333;">
         <button class="btn btn-sm btn-outline" id="prevCharPage" ${currentCharPage <= 1 ? 'disabled' : ''}>◀</button>
@@ -44,41 +43,15 @@ async function renderCharactersPanel() {
 
     body.innerHTML = html;
 
-    // Копирование ID
-    document.querySelectorAll('.copy-id-btn').forEach(btn => {
-      btn.addEventListener('click', async function(e) {
-        e.stopPropagation();
-        const id = this.dataset.id;
-        try {
-          await navigator.clipboard.writeText(id);
-          const original = this.textContent;
-          this.textContent = '✅';
-          this.classList.add('copied');
-          showToast(`ID персонажа скопирован: ${id}`, 'success', 3000);
-          setTimeout(() => {
-            this.textContent = original;
-            this.classList.remove('copied');
-          }, 2000);
-        } catch (err) {
-          const input = document.createElement('input');
-          input.value = id;
-          document.body.appendChild(input);
-          input.select();
-          document.execCommand('copy');
-          input.remove();
-          showToast(`ID скопирован: ${id}`, 'success', 3000);
-        }
-      });
-    });
-
     // Открытие чата
-    document.querySelectorAll('#charList .card-item').forEach(el => {
-      el.addEventListener('click', function(e) {
-        if (e.target.closest('.edit-char-btn') || e.target.closest('.copy-id-btn')) return;
-        const id = this.dataset.id;
-        if (id && typeof openChatForCharacter === 'function') openChatForCharacter(id);
-      });
-    });
+    // Стало:
+document.querySelectorAll('#charList .card-item').forEach(el => {
+  el.addEventListener('click', function(e) {
+    if (e.target.closest('.edit-char-btn')) return;
+    const id = this.dataset.id;
+    if (id && typeof openChatForCharacter === 'function') openChatForCharacter(id);
+  });
+});
 
     // Редактирование
     document.querySelectorAll('.edit-char-btn').forEach(btn => {
@@ -161,7 +134,6 @@ async function renderCharDetail() {
           <button class="btn btn-sm" id="exportCharBtn">⬇️ Экспорт</button>
           <button class="btn btn-sm" id="cloneCharBtn">📋 Клонировать</button>
           <button class="btn btn-sm btn-danger" id="deleteCharBtn">🗑️ Удалить</button>
-          <button class="btn btn-sm btn-outline copy-id-btn" id="copyIdBtn" data-id="${char.id}" title="Скопировать ID">📋 ID</button>
         </div>
       </div>
       <div style="display:flex; flex-direction:column; gap:6px; margin-top:8px;">

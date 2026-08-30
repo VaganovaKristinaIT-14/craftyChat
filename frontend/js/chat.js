@@ -29,7 +29,6 @@ async function renderChat() {
   const main = document.getElementById('main-content');
   if (!main) return;
 
-  // Включаем режим чата
   main.classList.add('chat-mode');
 
   try {
@@ -43,30 +42,25 @@ async function renderChat() {
     const character = await getCharacter(chat.character_id);
     const persona = chat.persona_id ? await getPersona(chat.persona_id) : null;
 
-    // Определяем режим для отображения
     const modeDisplay = chatMode === 'user' ? 'User' : 'Char';
-
-    // Фильтруем удалённые сообщения
     const activeMessages = chat.messages.filter(m => !m.deleted);
 
     const formatDate = (iso) => {
-  const date = new Date(iso);
-  const months = [
-    'января', 'февраля', 'марта', 'апреля', 'мая', 'июня',
-    'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'
-  ];
-  const day = date.getDate();
-  const month = months[date.getMonth()];
-  const year = date.getFullYear();
-  const hours = date.getHours().toString().replace(/^0/, '');
-  const minutes = date.getMinutes().toString().padStart(2, '0');
-  return `${day} ${month} ${year} г. ${hours}:${minutes}`;
-};
+      const date = new Date(iso);
+      const months = [
+        'января', 'февраля', 'марта', 'апреля', 'мая', 'июня',
+        'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'
+      ];
+      const day = date.getDate();
+      const month = months[date.getMonth()];
+      const year = date.getFullYear();
+      const hours = date.getHours().toString().replace(/^0/, '');
+      const minutes = date.getMinutes().toString().padStart(2, '0');
+      return `${day} ${month} ${year} г. ${hours}:${minutes}`;
+    };
 
-    // Рендерим контент
     main.innerHTML = `
       <div class="chat-viewport">
-        <!-- Область сообщений -->
         <div id="chatMessages" class="chat-messages">
           ${activeMessages.length === 0 ? '<p class="empty-message">Нет сообщений. Начните историю первым.</p>' :
             activeMessages.map(m => {
@@ -77,12 +71,13 @@ async function renderChat() {
                 ? `<img src="${avatarSrc}" class="msg-avatar avatar-clickable" data-avatar-src="${avatarSrc}" data-avatar-name="${avatarName}">`
                 : `<div class="msg-avatar msg-avatar-fallback avatar-clickable" data-avatar-src="" data-avatar-name="${avatarName}">${isUser ? '👤' : '🤖'}</div>`;
               return `
-              <div class="message-row ${isUser ? 'message-row-user' : 'message-row-char'}">
+              <div class="message-row ${isUser ? 'message-row-user' : 'message-row-char'}" data-index="${m.index}">
                 ${avatarHtml}
                 <div class="message-content-wrapper">
                   <div class="message-header">
                     <span class="message-author">${escHtml(avatarName)}</span>
                     <span class="message-time">${formatDate(m.timestamp)}</span>
+                    <button class="edit-msg-btn" data-index="${m.index}" data-role="${m.role}" title="Редактировать">${window.iconImg('rename', 'Редактировать', 14, 14)}</button>
                   </div>
                   <div class="message-text">${escHtml(m.content)}</div>
                   <div class="message-meta" style="display:none;">
@@ -93,8 +88,7 @@ async function renderChat() {
             `; }).join('')}
         </div>
 
-        <!-- Подвал чата (фиксированный внизу) -->
-        <footer class="chat-footer">
+        <footer class="chat-footer" style="position:relative;">
           <div class="mode-indicator">
             <span>Режим: <strong id="modeDisplay">${modeDisplay}</strong></span>
           </div>
@@ -103,27 +97,20 @@ async function renderChat() {
             <textarea id="chatInput" rows="1" placeholder="Напишите сценарий..."></textarea>
             <button class="btn" id="sendChatBtn">${window.iconImg('send', 'Отправить', 20, 20)}</button>
           </div>
+          <div id="chatMenuDropdown" class="chat-menu-dropdown" style="display:none;"></div>
         </footer>
-
-        <!-- Меню чата -->
-        <div id="chatMenuDropdown" class="chat-menu-dropdown" style="display:none;"></div>
       </div>
     `;
 
     // === Обработчики ===
 
-    // Клик по аватарке — открываем предпросмотр слева
+    // Клик по аватарке
     document.querySelectorAll('.msg-avatar.avatar-clickable').forEach(el => {
       el.addEventListener('click', function(e) {
         e.stopPropagation();
         const src = this.dataset.avatarSrc;
         const name = this.dataset.avatarName || 'Аватар';
-        if (src) {
-          showAvatarPreview(src, name);
-        } else {
-          // если аватарки нет, можно показать заглушку или ничего
-          showAvatarPreview(null, name);
-        }
+        showAvatarPreview(src, name);
       });
     });
 
@@ -171,12 +158,22 @@ async function renderChat() {
       toggleChatMenu(dropdown);
     });
 
+    // === Редактирование сообщений (делегирование) ===
+    document.getElementById('chatMessages').addEventListener('click', async function(e) {
+      const btn = e.target.closest('.edit-msg-btn');
+      if (!btn) return;
+      e.stopPropagation();
+      const row = btn.closest('.message-row');
+      const index = parseInt(btn.dataset.index);
+      const role = btn.dataset.role;
+      startEditMessage(row, index, role);
+    });
+
     // Прокрутка вниз
     const msgs = document.getElementById('chatMessages');
     if (msgs) msgs.scrollTop = msgs.scrollHeight;
 
     if (chat.mode) chatMode = chat.mode;
-    // обновляем отображение режима
     const modeEl = document.getElementById('modeDisplay');
     if (modeEl) modeEl.textContent = chatMode === 'user' ? 'User' : 'Char';
 
@@ -460,4 +457,97 @@ function showAvatarPreview(src, name) {
   container.addEventListener('click', (e) => {
     if (e.target === container) container.remove();
   });
+}
+
+// ============================================================
+// РЕДАКТИРОВАНИЕ СООБЩЕНИЙ
+// ============================================================
+
+let activeEditRow = null;       // ссылка на редактируемый .message-row
+let originalText = '';          // исходный текст сообщения
+let editIndex = null;           // индекс редактируемого сообщения
+
+function startEditMessage(row, index, role) {
+  // Закрываем предыдущее редактирование
+  cancelEdit();
+
+  const textDiv = row.querySelector('.message-text');
+  if (!textDiv) return;
+  const editBtn = row.querySelector('.edit-msg-btn');
+  if (!editBtn) return;
+
+  originalText = textDiv.textContent;
+  editIndex = index;
+  activeEditRow = row;
+
+  // Создаём textarea
+  const textarea = document.createElement('textarea');
+  textarea.className = 'edit-textarea';
+  textarea.value = originalText;
+  textDiv.replaceWith(textarea);
+
+  // Скрываем кнопку редактирования
+  editBtn.style.display = 'none';
+
+  // Создаём панель действий (галочка и крестик)
+  const header = row.querySelector('.message-header');
+  const actions = document.createElement('div');
+  actions.className = 'edit-actions';
+  actions.innerHTML = `
+    <button class="edit-confirm-btn" title="Сохранить">${window.iconImg('ok', 'Сохранить', 18, 18)}</button>
+    <button class="edit-cancel-btn" title="Отменить">${window.iconImg('close', 'Отменить', 18, 18)}</button>
+  `;
+
+  // Вставляем actions ПОСЛЕ header (перед textarea)
+  header.parentNode.insertBefore(actions, textarea);
+
+  // Обработчики
+  actions.querySelector('.edit-confirm-btn').addEventListener('click', async function() {
+    const newText = textarea.value.trim();
+    if (!newText) {
+      showToast('Сообщение не может быть пустым', 'warning');
+      return;
+    }
+    try {
+      await editMessage(window.currentChatId, index, newText);
+      await renderChat();
+      showToast('Сообщение обновлено', 'success');
+    } catch (e) {
+      showToast('Ошибка сохранения', 'error');
+    }
+  });
+
+  actions.querySelector('.edit-cancel-btn').addEventListener('click', function() {
+    cancelEdit();
+  });
+
+  // Автофокус
+  textarea.focus();
+  textarea.select();
+}
+
+function cancelEdit() {
+  if (!activeEditRow) return;
+
+  // Восстанавливаем исходный текст
+  const textarea = activeEditRow.querySelector('.edit-textarea');
+  if (textarea) {
+    const textDiv = document.createElement('div');
+    textDiv.className = 'message-text';
+    textDiv.textContent = originalText;
+    textarea.replaceWith(textDiv);
+  }
+
+  // Показываем кнопку редактирования
+  const editBtn = activeEditRow.querySelector('.edit-msg-btn');
+  if (editBtn) editBtn.style.display = 'inline-flex';
+
+  // Удаляем панель действий
+  const actions = activeEditRow.querySelector('.edit-actions');
+  if (actions) actions.remove();
+
+  // Сбрасываем состояние
+  activeEditRow = null;
+  originalText = '';
+  editIndex = null;
 }

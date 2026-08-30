@@ -15,7 +15,9 @@ export const ICONS = {
   persona: `${ICON_BASE}persona.svg`,
   preset: `${ICON_BASE}preset.svg`,
   rename: `${ICON_BASE}rename.svg`,
-  send: `${ICON_BASE}send.svg`,        // <-- добавляем
+  send: `${ICON_BASE}send.svg`,
+  ok: `${ICON_BASE}ok.svg`,
+close: `${ICON_BASE}close.svg`,
 };
 
 export function iconImg(name, alt = '', width = 18, height = 18) {

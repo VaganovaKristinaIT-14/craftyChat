@@ -100,7 +100,7 @@ body {
 
 .logo {
   font-family: var(--font-display);
-  font-size: 23px;
+  font-size: 28px;
   font-weight: 650;
   color: var(--paper);
   letter-spacing: 0.2px;
@@ -194,15 +194,6 @@ nav {
   overflow: hidden;
 }
 
-/* Подвал чата — прижат к низу */
-.chat-footer {
-  flex-shrink: 0;
-  background: var(--ink-1);
-  border-top: 1px solid var(--line-soft);
-  padding: 10px 16px 20px;
-  margin-top: auto; /* прижимает к низу */
-}
-
 /* ===== БОКОВЫЕ ПАНЕЛИ (выезд сверху, развертка) ===== */
 .side-panel {
   position: fixed;
@@ -283,7 +274,7 @@ nav {
 }
 .panel-header h2 {
   font-family: var(--font-display);
-  font-size: 21px;
+  font-size: 24px;
   font-weight: 560;
 }
 .close-panel {
@@ -372,10 +363,10 @@ nav {
 }
 .card-avatar img { width: 100%; height: 100%; object-fit: cover; }
 .card-info { flex: 1; min-width: 0; }
-.card-info .name { font-weight: 700; color: var(--paper); font-size: 14.5px; }
+.card-info .name { font-weight: 700; color: var(--paper); font-size: 17px; }
 .card-info .sub {
   font-family: var(--font-mono);
-  font-size: 12px; color: var(--paper-faint);
+  font-size: 14px; color: var(--paper-faint);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   margin-top: 2px;
 }
@@ -388,7 +379,7 @@ textarea, input[type="text"], input[type="number"], select {
   border-radius: var(--radius-sm);
   padding: 10px 14px;
   font-family: var(--font-body);
-  font-size: 14px;
+  font-size: 16px;
   width: 100%;
   transition: 0.15s ease;
 }
@@ -416,7 +407,7 @@ label {
   border-radius: 999px;
   font-family: var(--font-body);
   font-weight: 700;
-  font-size: 13.5px;
+  font-size: 15px;
   cursor: pointer;
   transition: 0.15s ease;
   display: inline-flex;
@@ -439,7 +430,7 @@ label {
 .btn-danger:hover { background: var(--wine-bright); }
 .btn-outline { background: transparent; border: 1px solid var(--line); color: var(--paper-dim); }
 .btn-outline:hover { background: var(--ink-3); border-color: #4a4457; color: var(--paper); }
-.btn-sm { padding: 4px 10px; font-size: 12px; }
+.btn-sm { padding: 4px 10px; font-size: 13px; }
 .btn:disabled { opacity: 0.4; cursor: not-allowed; }
 
 /* ===== TOAST ===== */
@@ -520,20 +511,20 @@ label {
 
 .message-author {
   font-weight: 700;
-  font-size: 14px;
+  font-size: 16px;
   color: var(--paper);
 }
 
 .message-time {
   font-family: var(--font-mono);
-  font-size: 12px;
+  font-size: 13px;
   color: var(--paper-faint);
   opacity: 0.7;
 }
 
 /* --- Текст сообщения --- */
 .message-text {
-  font-size: 14.5px;
+  font-size: 16px;
   line-height: 1.6;
   color: var(--paper);
   word-wrap: break-word;
@@ -570,18 +561,93 @@ label {
   flex-shrink: 0;
   background: var(--ink-1);
   border-top: 1px solid var(--line-soft);
-  padding: 10px 16px 20px;
+  padding: 14px 16px 20px;
 }
 
 .mode-indicator {
   font-family: var(--font-body);
-  font-size: 11px;
+  font-size: 13px;
   color: var(--paper-faint);
   margin-bottom: 8px;
 }
 .mode-indicator strong {
   font-weight: 400; /* не жирный */
   color: var(--paper-faint); /* серый */
+}
+
+/* ===== Кнопка редактирования ===== */
+.edit-msg-btn {
+  background: transparent;
+  border: none;
+  color: var(--paper-faint);
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: 0.15s;
+  margin-left: auto; /* прижимаем вправо */
+}
+.edit-msg-btn:hover {
+  color: var(--paper);
+  background: var(--ink-4);
+}
+
+/* ===== Текстовое поле редактирования ===== */
+.edit-textarea {
+  width: 100%;
+  background: var(--ink-0);
+  color: var(--paper);
+  border: 1px solid var(--amber);
+  border-radius: var(--radius-sm);
+  padding: 8px 10px;
+  font-family: var(--font-body);
+  font-size: 15px;
+  resize: vertical;
+  min-height: 60px;
+  margin-top: 4px;
+}
+.edit-textarea:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px #e6a64830;
+}
+
+/* ===== Панель действий редактирования ===== */
+.edit-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end; /* КНОПКИ СПРАВА */
+  margin-bottom: 4px; /* отступ снизу перед полем */
+}
+/* Иконки в кнопках редактирования — белые */
+.edit-msg-btn img {
+  filter: brightness(0) saturate(100%) invert(1) brightness(0.5);
+}
+
+/* Иконки в панели действий (галочка и крестик) — белые */
+.edit-actions img {
+  filter: brightness(0) saturate(100%) invert(1) brightness(0.5);
+}
+.edit-actions button {
+  background: transparent;
+  border: none;
+  color: var(--paper-faint);
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: 4px;
+  transition: 0.15s;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.edit-actions .edit-confirm-btn:hover {
+  color: #4caf50;
+  background: var(--ink-4);
+}
+.edit-actions .edit-cancel-btn:hover {
+  color: #e74c6f;
+  background: var(--ink-4);
 }
 
 /* ===== ПРЕДПРОСМОТР АВАТАРКИ СЛЕВА (без затемнения) ===== */
@@ -858,30 +924,16 @@ label {
 .toast-info .toast-icon { color: #4a6cf7; }
 .toast-info .toast-progress { background: #4a6cf7; }
 
-/* ============================================================
-   КНОПКА КОПИРОВАНИЯ ID
-   ============================================================ */
 
-.copy-id-btn {
-  background: transparent;
-  border: none;
-  color: var(--paper-faint);
+/* Стили для модалки выбора персонажа (привязка) */
+.char-select-item {
+  padding: 8px 12px;
+  border-radius: 8px;
   cursor: pointer;
-  padding: 4px 6px;
-  border-radius: 6px;
-  font-size: 13px;
-  transition: 0.15s;
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  font-family: var(--font-mono);
+  transition: background 0.15s;
 }
-.copy-id-btn:hover {
-  color: var(--paper);
-  background: var(--ink-4);
-}
-.copy-id-btn.copied {
-  color: #4caf50;
+.char-select-item:hover {
+  background: var(--ink-3);
 }
 
 /* ============================================================
@@ -935,7 +987,7 @@ label {
 }
 .world-name {
   font-family: var(--font-display);
-  font-size: 20px;
+  font-size: 22px;
   font-weight: 560;
   margin: 0;
 }
@@ -1117,7 +1169,7 @@ label {
 .summary-placeholder {
   text-align: center;
   color: var(--paper-faint);
-  font-size: 18px;
+  font-size: 20px;
   padding: 40px 0;
 }
 .summary-status {
@@ -1183,7 +1235,7 @@ label {
 }
 .blocks-header h4 {
   margin: 0;
-  font-size: 18px;
+  font-size: 20px;
   font-weight: 500;
 }
 .blocks-list {
@@ -1277,7 +1329,7 @@ label {
 
 .app-modal-title {
   font-family: var(--font-display);
-  font-size: 20px;
+  font-size: 22px;
   font-weight: 650;
   color: var(--paper);
   margin-bottom: 8px;
@@ -1285,7 +1337,7 @@ label {
 
 .app-modal-message {
   color: var(--paper-dim);
-  font-size: 14.5px;
+  font-size: 16px;
   line-height: 1.6;
   margin-bottom: 16px;
   white-space: pre-line;
@@ -1301,7 +1353,7 @@ label {
   border-radius: var(--radius-sm);
   padding: 10px 14px;
   font-family: var(--font-body);
-  font-size: 14px;
+  font-size: 15px;
   margin-bottom: 18px;
   resize: vertical;
 }
