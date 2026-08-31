@@ -2,8 +2,6 @@
 // PRESETS — управление пресетами
 // ============================================================
 
-
-
 function getActiveCollectionFrom(data) {
   if (!data || !data.collections || data.collections.length === 0) return null;
   return data.collections.find(c => c.id === data.activeCollectionId) || data.collections[0];
@@ -26,37 +24,39 @@ async function renderPresetsPanel() {
             <option value="${c.id}" ${c.id === data.activeCollectionId ? 'selected' : ''}>${escHtml(c.name)}</option>
           `).join('')}
         </select>
-        <button id="addCollectionBtn" style="background:#4a6cf7;color:#fff;border:none;border-radius:4px;padding:4px 10px;cursor:pointer;font-size:16px;" title="Добавить сборник">➕</button>
-        <button id="renameCollectionBtn" style="background:#f0c040;color:#000;border:none;border-radius:4px;padding:4px 10px;cursor:pointer;font-size:16px;" title="Переименовать">✎</button>
-        <button id="deleteCollectionBtn" style="background:#ff6b6b;color:#fff;border:none;border-radius:4px;padding:4px 10px;cursor:pointer;font-size:16px;" title="Удалить сборник">🗑️</button>
-        <button id="exportCollectionBtn" style="background:#4a6cf7;color:#fff;border:none;border-radius:4px;padding:4px 10px;cursor:pointer;font-size:16px;" title="Экспортировать">⬇️</button>
-        <button id="importCollectionBtn" style="background:#4a6cf7;color:#fff;border:none;border-radius:4px;padding:4px 10px;cursor:pointer;font-size:16px;" title="Импортировать">⬆️</button>
+        <button class="preset-tool-btn" id="addCollectionBtn" title="Добавить сборник">${window.iconImg('add', 'Добавить', 18, 18)}</button>
+        <button class="preset-tool-btn" id="renameCollectionBtn" title="Переименовать">${window.iconImg('rename', 'Переименовать', 18, 18)}</button>
+        <button class="preset-tool-btn" id="deleteCollectionBtn" title="Удалить сборник">${window.iconImg('delete', 'Удалить', 18, 18)}</button>
+        <button class="preset-tool-btn" id="exportCollectionBtn" title="Экспортировать">${window.iconImg('export', 'Экспорт', 18, 18)}</button>
+        <button class="preset-tool-btn" id="importCollectionBtn" title="Импортировать">${window.iconImg('import', 'Импорт', 18, 18)}</button>
       </div>
       <div style="margin-bottom:12px;">
-        <label style="color:#fff;font-size:13px;">Макс. длина промпта (токены): <span id="tokenLimitDisplay">${collection.tokenLimit || 10000}</span></label>
-        <input type="range" id="tokenLimit" min="5000" max="100000" step="1000" value="${collection.tokenLimit || 10000}" style="width:100%;">
+        <div style="font-size:14px; color:var(--paper); margin-bottom:4px;">Макс. длина промпта (токены): <span id="tokenLimitDisplay">${collection.tokenLimit || 30000}</span></div>
+        <input type="range" id="tokenLimit" min="5000" max="100000" step="1000" value="${collection.tokenLimit || 30000}" style="width:100%;">
       </div>
-      <label style="color:#fff;">Основной промпт:</label>
+      <label class="preset-label">Основной промпт:</label>
       <textarea id="mainPrompt" rows="6" style="width:100%;background:#111212;color:#fff;border:1px solid #555;border-radius:4px;padding:8px;resize:vertical;">${escHtml(collection.mainPrompt)}</textarea>
-      <label style="color:#fff;">Дополнительный промпт:</label>
+      <label class="preset-label">Дополнительный промпт:</label>
       <textarea id="extraPrompt" rows="4" style="width:100%;background:#111212;color:#fff;border:1px solid #555;border-radius:4px;padding:8px;resize:vertical;">${escHtml(collection.extraPrompt)}</textarea>
       <hr style="border-color:#444;">
       <div style="display:flex;justify-content:space-between;align-items:center;">
         <h3 style="color:#fff;font-size:15px;">Пресеты</h3>
-        <button id="addPresetBtn" style="background:#4a6cf7;color:#fff;border:none;border-radius:4px;padding:4px 12px;cursor:pointer;">+ Добавить</button>
+        <button class="preset-tool-btn" id="addPresetBtn" title="Добавить пресет">${window.iconImg('add', 'Добавить', 18, 18)}</button>
       </div>
       <div id="presetsList" style="margin-top:8px;">
         ${collection.presets.length === 0 ? `
-          <p style="color:#888;font-size:13px;">Нет пресетов. Нажмите «+ Добавить».</p>
+          <p style="color:#888;font-size:13px;">Нет пресетов. Нажмите «+».</p>
         ` : collection.presets.map(p => `
           <div class="preset-item" data-id="${p.id}" style="background:#2e2e2e;padding:8px;border-radius:6px;margin-top:8px;">
             <div style="display:flex;justify-content:space-between;align-items:center;">
               <span style="color:#fff;cursor:pointer;" class="preset-toggle">${escHtml(p.name)}</span>
               <div style="display:flex;align-items:center;gap:6px;">
-                <label style="color:#fff;font-size:12px;">Вкл</label>
-                <input type="checkbox" ${p.enabled ? 'checked' : ''} class="preset-toggle-checkbox" style="accent-color:#4a6cf7;">
-                <button class="edit-preset" style="background:none;border:none;color:#aaa;cursor:pointer;font-size:14px;" title="Редактировать">✎</button>
-                <button class="delete-preset" style="background:none;border:none;color:#ff4444;cursor:pointer;font-size:14px;" title="Удалить">✕</button>
+                <label class="switch">
+                  <input type="checkbox" ${p.enabled ? 'checked' : ''} class="preset-toggle-checkbox">
+                  <span class="slider"></span>
+                </label>
+                <button class="edit-preset" title="Переименовать">${window.iconImg('rename', 'Переименовать', 14, 14)}</button>
+                <button class="delete-preset" title="Удалить">${window.iconImg('delete', 'Удалить', 14, 14)}</button>
               </div>
             </div>
             <div class="preset-content" style="display:none;margin-top:8px;">
@@ -67,6 +67,7 @@ async function renderPresetsPanel() {
       </div>
     `;
 
+
     // Обработчики (все с debounce / async)
 
     // Переключение коллекции
@@ -75,7 +76,6 @@ async function renderPresetsPanel() {
       const d = await getPresetsData();
       d.activeCollectionId = this.value;
       await savePresetsData(d);
-      // метим dirty, чтобы при следующем открытии обновить список коллекций
       window.markDirty('presets');
       renderPresetsPanel();
     });
@@ -86,7 +86,7 @@ async function renderPresetsPanel() {
       const name = await showPrompt('Введите название нового сборника', 'Новый сборник', { title: 'Новый сборник' });
       if (!name) return;
       const d = await getPresetsData();
-      const newCol = { id: generateId(), name, mainPrompt: '', extraPrompt: '', presets: [], tokenLimit: 10000 };
+      const newCol = { id: generateId(), name, mainPrompt: '', extraPrompt: '', presets: [], tokenLimit: 30000 };
       d.collections.push(newCol);
       d.activeCollectionId = newCol.id;
       await savePresetsData(d);
@@ -95,7 +95,7 @@ async function renderPresetsPanel() {
       showToast('Сборник создан', 'success');
     });
 
-    // Переименовать коллекцию
+    // Переименовать коллекцию – без тоста
     document.getElementById('renameCollectionBtn')?.addEventListener('click', async function(e) {
       e.stopPropagation();
       const d = await getPresetsData();
@@ -107,7 +107,7 @@ async function renderPresetsPanel() {
       await savePresetsData(d);
       window.markDirty('presets');
       renderPresetsPanel();
-      showToast('Сборник переименован', 'success');
+      // Убрано showToast
     });
 
     // Удалить коллекцию
@@ -129,7 +129,7 @@ async function renderPresetsPanel() {
       showToast('Сборник удалён', 'success');
     });
 
-    // Экспорт (не меняет данные – markDirty не нужен)
+    // Экспорт
     document.getElementById('exportCollectionBtn')?.addEventListener('click', async function(e) {
       e.stopPropagation();
       const d = await getPresetsData();
@@ -146,7 +146,7 @@ async function renderPresetsPanel() {
       showToast('Сборник экспортирован', 'success');
     });
 
-    // Импорт коллекции
+    // Импорт
     document.getElementById('importCollectionBtn')?.addEventListener('click', function(e) {
       e.stopPropagation();
       const input = document.createElement('input');
@@ -164,7 +164,7 @@ async function renderPresetsPanel() {
               return;
             }
             const d = await getPresetsData();
-            const newCol = { id: generateId(), name: imported.name || 'Импортированный', mainPrompt: imported.mainPrompt || '', extraPrompt: imported.extraPrompt || '', presets: (imported.presets || []).map(p => ({ id: generateId(), name: p.name || 'Пресет', enabled: p.enabled !== undefined ? p.enabled : true, content: p.content || '' })), tokenLimit: imported.tokenLimit || 10000 };
+            const newCol = { id: generateId(), name: imported.name || 'Импортированный', mainPrompt: imported.mainPrompt || '', extraPrompt: imported.extraPrompt || '', presets: (imported.presets || []).map(p => ({ id: generateId(), name: p.name || 'Пресет', enabled: p.enabled !== undefined ? p.enabled : true, content: p.content || '' })), tokenLimit: imported.tokenLimit || 30000 };
             d.collections.push(newCol);
             d.activeCollectionId = newCol.id;
             await savePresetsData(d);
@@ -180,7 +180,7 @@ async function renderPresetsPanel() {
       input.click();
     });
 
-    // Изменение лимита токенов
+    // Ползунок лимита
     document.getElementById('tokenLimit')?.addEventListener('input', debounce(async function(e) {
       document.getElementById('tokenLimitDisplay').textContent = this.value;
       const d = await getPresetsData();
@@ -192,7 +192,7 @@ async function renderPresetsPanel() {
       }
     }, 400));
 
-    // Изменение основного промпта
+    // Основной промпт
     document.getElementById('mainPrompt')?.addEventListener('input', debounce(async function() {
       const d = await getPresetsData();
       const col = getActiveCollectionFrom(d);
@@ -203,7 +203,7 @@ async function renderPresetsPanel() {
       }
     }, 500));
 
-    // Изменение дополнительного промпта
+    // Дополнительный промпт
     document.getElementById('extraPrompt')?.addEventListener('input', debounce(async function() {
       const d = await getPresetsData();
       const col = getActiveCollectionFrom(d);
@@ -260,7 +260,7 @@ async function renderPresetsPanel() {
       });
     });
 
-    // Раскрытие/сворачивание содержимого пресета (не меняет данные – markDirty не нужен)
+    // Раскрытие содержимого пресета
     document.querySelectorAll('.preset-toggle').forEach(span => {
       span.addEventListener('click', function(e) {
         e.stopPropagation();
@@ -271,7 +271,7 @@ async function renderPresetsPanel() {
       });
     });
 
-    // Редактирование содержимого пресета (автосохранение)
+    // Редактирование содержимого пресета
     document.querySelectorAll('.preset-content textarea').forEach(textarea => {
       textarea.addEventListener('input', debounce(async function(e) {
         const item = this.closest('.preset-item');
@@ -288,7 +288,7 @@ async function renderPresetsPanel() {
       }, 500));
     });
 
-    // Переименовать пресет (кнопка ✎)
+    // Переименовать пресет – без тоста
     document.querySelectorAll('.edit-preset').forEach(btn => {
       btn.addEventListener('click', async function(e) {
         e.stopPropagation();
@@ -305,6 +305,7 @@ async function renderPresetsPanel() {
         await savePresetsData(d);
         window.markDirty('presets');
         renderPresetsPanel();
+        // Убрано showToast
       });
     });
   } catch (e) {
@@ -312,4 +313,3 @@ async function renderPresetsPanel() {
     console.error(e);
   }
 }
-

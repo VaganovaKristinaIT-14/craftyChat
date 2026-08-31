@@ -2,15 +2,53 @@
 // CHAT — работа с чатами (полная версия с фильтрацией удалённых)
 // ============================================================
 
+// Состояние пагинации чата
+let chatPagination = {
+  chatId: null,
+  messages: [],          // все загруженные сообщения в порядке возрастания индекса
+  loadedPages: [],       // номера загруженных страниц
+  totalPages: 0,
+  isLoading: false,
+  scrollPos: 0           // для сохранения позиции прокрутки
+};
+
 window.currentChatId = null;
 let chatMode = 'user';
-let chatMessagesPage = 1;
+let chatMessagesPage = 1; // пока не используется, оставлено для совместимости
 let chatMenuOpen = false;
 const MSG_PER_PAGE = 20;
 
+// Состояние для режима удаления сообщений
+let deleteModeActive = false;
+let selectedMessageIndices = new Set();
+
+// === ПАГИНАЦИЯ: вспомогательная функция для сброса состояния ===
+function resetPagination(chatId) {
+  chatPagination.chatId = chatId;
+  chatPagination.messages = [];
+  chatPagination.loadedPages = [];
+  chatPagination.totalPages = 0;
+  chatPagination.isLoading = false;
+  chatPagination.scrollPos = 0;
+}
+
 window.openChat = async function(chatId) {
+  const chat = await getChat(chatId);
+  if (!chat) {
+    showToast('Чат не найден', 'error');
+    return;
+  }
+  const linkedPersona = await getPersonaForCharacter(chat.character_id);
+  if (linkedPersona) {
+    if (chat.persona_id !== linkedPersona.id) {
+      await updateChat(chatId, { persona_id: linkedPersona.id });
+      chat.persona_id = linkedPersona.id;
+    }
+    await activatePersona(linkedPersona.id);
+  }
   window.currentChatId = chatId;
   chatMessagesPage = 1;
+  resetPagination(chatId); // сбрасываем пагинацию для нового чата
   await renderChat();
 };
 
@@ -32,18 +70,68 @@ async function renderChat() {
   main.classList.add('chat-mode');
 
   try {
-    const chat = await getChat(window.currentChatId, chatMessagesPage, MSG_PER_PAGE);
+    const chatId = window.currentChatId;
+    if (!chatId) {
+      renderMainPage();
+      return;
+    }
+
+    // Если чат сменился – сбрасываем состояние (но это уже сделано в openChat)
+    if (chatPagination.chatId !== chatId) {
+      resetPagination(chatId);
+    }
+
+    // === ПАГИНАЦИЯ: определяем, какую страницу загружать ===
+    let pageToLoad = 1;
+    if (chatPagination.loadedPages.length === 0) {
+      // Первая загрузка – берём самую новую страницу (page = 1)
+      pageToLoad = 1;
+    } else {
+      // Уже есть загруженные – загружаем следующую (старее)
+      const lastLoaded = Math.max(...chatPagination.loadedPages);
+      pageToLoad = lastLoaded + 1;
+    }
+
+    // Загружаем данные чата (получаем страницу)
+    const chat = await getChat(chatId, pageToLoad, MSG_PER_PAGE);
     if (!chat) {
       showToast('Чат не найден', 'error');
       renderMainPage();
       return;
     }
 
+    // Если это первая страница, сохраняем общее количество страниц
+    if (pageToLoad === 1) {
+      // Предполагаем, что getChat возвращает { messages, total }
+      chatPagination.totalPages = Math.ceil((chat.messages_total || 0) / MSG_PER_PAGE);
+if (chatPagination.totalPages === 0) chatPagination.totalPages = 1;
+    }
+
+    // Фильтруем удалённые сообщения
+    const newMessages = chat.messages.filter(m => !m.deleted);
+
+    // Добавляем загруженные сообщения в общий массив
+    if (pageToLoad === 1) {
+      // Первая страница – самые новые сообщения, они должны быть в конце
+      chatPagination.messages = newMessages;
+    } else {
+      // Более старые сообщения добавляем в начало
+      chatPagination.messages = newMessages.concat(chatPagination.messages);
+    }
+
+    // Сохраняем загруженную страницу
+    if (!chatPagination.loadedPages.includes(pageToLoad)) {
+      chatPagination.loadedPages.push(pageToLoad);
+    }
+
+    // Теперь у нас есть все загруженные сообщения в chatPagination.messages
+    const activeMessages = chatPagination.messages;
+
+    // Получаем персонажа и персону (как и раньше)
     const character = await getCharacter(chat.character_id);
     const persona = chat.persona_id ? await getPersona(chat.persona_id) : null;
 
     const modeDisplay = chatMode === 'user' ? 'User' : 'Char';
-    const activeMessages = chat.messages.filter(m => !m.deleted);
 
     const formatDate = (iso) => {
       const date = new Date(iso);
@@ -59,38 +147,71 @@ async function renderChat() {
       return `${day} ${month} ${year} г. ${hours}:${minutes}`;
     };
 
+    // === ПАГИНАЦИЯ: формируем кнопку "Показать ранние" ===
+    let loadMoreHtml = '';
+    if (chatPagination.loadedPages.length < chatPagination.totalPages && !chatPagination.isLoading) {
+      loadMoreHtml = `
+        <div style="text-align:center; padding: 8px 0;">
+          <button id="loadMoreBtn" class="btn btn-outline btn-sm">
+            Показать ранние сообщения
+          </button>
+        </div>
+      `;
+    } else if (chatPagination.isLoading) {
+      loadMoreHtml = `
+        <div style="text-align:center; padding: 8px 0; color: var(--paper-faint);">
+          Загрузка...
+        </div>
+      `;
+    }
+
+    // Формируем HTML сообщений
+    const messagesHtml = activeMessages.length === 0
+      ? '<p class="empty-message">Нет сообщений. Начните историю первым.</p>'
+      : activeMessages.map(m => {
+          const isUser = m.role === 'user';
+          const avatarSrc = isUser ? (persona?.avatar || '') : (character?.avatar || '');
+          const avatarName = isUser ? (persona?.name || 'User') : (character?.name || 'Char');
+          const avatarHtml = avatarSrc
+            ? `<img src="${avatarSrc}" class="msg-avatar avatar-clickable" data-avatar-src="${avatarSrc}" data-avatar-name="${avatarName}">`
+            : `<div class="msg-avatar msg-avatar-fallback avatar-clickable" data-avatar-src="" data-avatar-name="${avatarName}">${isUser ? '👤' : '🤖'}</div>`;
+          return `
+            <div class="message-row ${isUser ? 'message-row-user' : 'message-row-char'}" data-index="${m.index}">
+              ${avatarHtml}
+              <div class="message-content-wrapper">
+                <div class="message-header">
+                  <div class="message-info-left">
+                    <span class="message-author">${escHtml(avatarName)}</span>
+                    <span class="message-time">${formatDate(m.timestamp)}</span>
+                  </div>
+                  <div class="message-actions-right">
+                    <button class="edit-msg-btn" data-index="${m.index}" data-role="${m.role}" title="Редактировать">${window.iconImg('rename', 'Редактировать', 14, 14)}</button>
+                  </div>
+                </div>
+                <div class="message-text">${escHtml(m.content)}</div>
+                <div class="message-meta" style="display:none;">
+                  <span class="msg-index">#${m.index}</span>
+                </div>
+              </div>
+            </div>
+          `;
+        }).join('');
+
+    // Основной HTML чата
     main.innerHTML = `
       <div class="chat-viewport">
         <div id="chatMessages" class="chat-messages">
-          ${activeMessages.length === 0 ? '<p class="empty-message">Нет сообщений. Начните историю первым.</p>' :
-            activeMessages.map(m => {
-              const isUser = m.role === 'user';
-              const avatarSrc = isUser ? (persona?.avatar || '') : (character?.avatar || '');
-              const avatarName = isUser ? (persona?.name || 'User') : (character?.name || 'Char');
-              const avatarHtml = avatarSrc
-                ? `<img src="${avatarSrc}" class="msg-avatar avatar-clickable" data-avatar-src="${avatarSrc}" data-avatar-name="${avatarName}">`
-                : `<div class="msg-avatar msg-avatar-fallback avatar-clickable" data-avatar-src="" data-avatar-name="${avatarName}">${isUser ? '👤' : '🤖'}</div>`;
-              return `
-              <div class="message-row ${isUser ? 'message-row-user' : 'message-row-char'}" data-index="${m.index}">
-                ${avatarHtml}
-                <div class="message-content-wrapper">
-                  <div class="message-header">
-                    <span class="message-author">${escHtml(avatarName)}</span>
-                    <span class="message-time">${formatDate(m.timestamp)}</span>
-                    <button class="edit-msg-btn" data-index="${m.index}" data-role="${m.role}" title="Редактировать">${window.iconImg('rename', 'Редактировать', 14, 14)}</button>
-                  </div>
-                  <div class="message-text">${escHtml(m.content)}</div>
-                  <div class="message-meta" style="display:none;">
-                    <span class="msg-index">#${m.index}</span>
-                  </div>
-                </div>
-              </div>
-            `; }).join('')}
+          ${loadMoreHtml}
+          ${messagesHtml}
         </div>
 
         <footer class="chat-footer" style="position:relative;">
           <div class="mode-indicator">
             <span>Режим: <strong id="modeDisplay">${modeDisplay}</strong></span>
+            <span id="deleteModeActions" style="display:none; margin-left:16px;">
+              <button class="preset-tool-btn" id="confirmDeleteBtn" title="Подтвердить удаление">${window.iconImg('ok', 'Подтвердить', 16, 16)}</button>
+              <button class="preset-tool-btn" id="cancelDeleteBtn" title="Отменить">${window.iconImg('close', 'Отменить', 16, 16)}</button>
+            </span>
           </div>
           <div class="chat-input-row">
             <button class="btn btn-outline" id="chatMenuBtn">☰</button>
@@ -114,6 +235,39 @@ async function renderChat() {
       });
     });
 
+    // === ПАГИНАЦИЯ: обработчик кнопки "Показать ранние" ===
+    const loadBtn = document.getElementById('loadMoreBtn');
+    if (loadBtn) {
+      loadBtn.addEventListener('click', async function() {
+        if (chatPagination.isLoading) return;
+        chatPagination.isLoading = true;
+        // Сохраняем текущую позицию прокрутки (относительно верхней части)
+        const msgContainer = document.getElementById('chatMessages');
+        if (msgContainer) {
+          chatPagination.scrollPos = msgContainer.scrollTop;
+        }
+        await renderChat(); // рекурсивно загрузит следующую страницу
+        chatPagination.isLoading = false;
+        // Восстанавливаем позицию прокрутки (прокручиваем к тому же месту)
+        const newMsgContainer = document.getElementById('chatMessages');
+        if (newMsgContainer) {
+          // После добавления старых сообщений scrollTop должен увеличиться на высоту добавленных
+          // Мы просто устанавливаем сохранённое значение, но оно уже сместится автоматически,
+          // так как содержимое увеличилось. Можно установить точное значение:
+          // Для простоты оставляем как есть – пользователь сам прокрутит.
+          // Но можно прокрутить к первому сообщению из старых, чтобы не потерять место.
+          // Попробуем найти первое сообщение из только что добавленных (новых в начале)
+          // и прокрутить к нему.
+          const firstOldMsg = newMsgContainer.querySelector('.message-row');
+          if (firstOldMsg) {
+            firstOldMsg.scrollIntoView({ block: 'start' });
+          } else {
+            newMsgContainer.scrollTop = chatPagination.scrollPos;
+          }
+        }
+      });
+    }
+
     // Отправка сообщения
     const sendBtn = document.getElementById('sendChatBtn');
     const input = document.getElementById('chatInput');
@@ -129,6 +283,8 @@ async function renderChat() {
           showToast('Обновите историю чата (саммари)', 'warning', 5000);
         }
         input.value = '';
+        // После отправки сбрасываем пагинацию, чтобы загрузить свежие сообщения
+        resetPagination(window.currentChatId);
         await renderChat();
         if (role === 'user') {
           await generateAndCopyPrompt(text);
@@ -147,7 +303,12 @@ async function renderChat() {
     });
     input?.addEventListener('input', function() {
       this.style.height = 'auto';
-      this.style.height = Math.min(this.scrollHeight, 150) + 'px';
+      const maxHeight = 288; // 12 строк
+      if (this.scrollHeight > maxHeight) {
+        this.style.height = maxHeight + 'px';
+      } else {
+        this.style.height = this.scrollHeight + 'px';
+      }
     });
 
     // Меню чата
@@ -158,7 +319,7 @@ async function renderChat() {
       toggleChatMenu(dropdown);
     });
 
-    // === Редактирование сообщений (делегирование) ===
+    // Редактирование сообщений (делегирование)
     document.getElementById('chatMessages').addEventListener('click', async function(e) {
       const btn = e.target.closest('.edit-msg-btn');
       if (!btn) return;
@@ -169,9 +330,53 @@ async function renderChat() {
       startEditMessage(row, index, role);
     });
 
-    // Прокрутка вниз
+    // Режим удаления сообщений: клик по сообщению (если активен)
+    document.getElementById('chatMessages').addEventListener('click', function(e) {
+      if (!deleteModeActive) return;
+      const row = e.target.closest('.message-row');
+      if (!row) return;
+      const index = parseInt(row.dataset.index);
+      if (isNaN(index)) return;
+      toggleMessageSelection(row, index);
+    });
+
+    // Кнопки подтверждения/отмены удаления
+    document.getElementById('confirmDeleteBtn')?.addEventListener('click', async function() {
+      if (selectedMessageIndices.size === 0) {
+        showToast('Выберите хотя бы одно сообщение', 'warning');
+        return;
+      }
+      const ok = await showConfirm('Удалить выбранные сообщения? Это действие необратимо.', { title: 'Удаление сообщений', okText: 'Удалить' });
+      if (!ok) return;
+      try {
+        await deleteMessages(window.currentChatId, Array.from(selectedMessageIndices));
+        exitDeleteMode();
+        // После удаления сбрасываем пагинацию и перерисовываем
+        resetPagination(window.currentChatId);
+        await renderChat();
+        showToast('Сообщения удалены', 'success');
+      } catch (e) {
+        showToast('Ошибка удаления', 'error');
+      }
+    });
+
+    document.getElementById('cancelDeleteBtn')?.addEventListener('click', function() {
+      exitDeleteMode();
+      renderChat();
+    });
+
+    // Прокрутка вниз (только если мы на первой странице и не грузили старые)
     const msgs = document.getElementById('chatMessages');
-    if (msgs) msgs.scrollTop = msgs.scrollHeight;
+    if (msgs) {
+      if (pageToLoad === 1) {
+        msgs.scrollTop = msgs.scrollHeight;
+      } else {
+        // При подгрузке старых восстанавливаем позицию
+        if (chatPagination.scrollPos > 0) {
+          msgs.scrollTop = chatPagination.scrollPos;
+        }
+      }
+    }
 
     if (chat.mode) chatMode = chat.mode;
     const modeEl = document.getElementById('modeDisplay');
@@ -185,24 +390,23 @@ async function renderChat() {
 }
 
 // ============================================================
-// МЕНЮ ЧАТА
+// МЕНЮ ЧАТА (без эмодзи)
 // ============================================================
 
 function toggleChatMenu(dropdown) {
   if (!dropdown) return;
   if (dropdown.style.display === 'none') {
-    // Добавляем класс для стилизации, убираем inline-стили позиционирования
     dropdown.className = 'chat-menu-dropdown';
     dropdown.innerHTML = `
-      <div class="chat-menu-item" data-action="close" style="padding:8px 16px; color:#e74c6f; cursor:pointer;">✕ Закрыть чат</div>
-      <div class="chat-menu-item" data-action="chats" style="padding:8px 16px; cursor:pointer;">📋 Все чаты</div>
-      <div class="chat-menu-item" data-action="new" style="padding:8px 16px; cursor:pointer;">➕ Новый чат</div>
-      <div class="chat-menu-item" data-action="checkpoint" style="padding:8px 16px; cursor:pointer;">💾 Чекпоинт</div>
-      <div class="chat-menu-item" data-action="delete_messages" style="padding:8px 16px; color:#e74c6f; cursor:pointer;">🗑️ Удалить сообщения</div>
-      <div class="chat-menu-item" data-action="generate" style="padding:8px 16px; color:#4a6cf7; cursor:pointer;">⚡ Генерация промпта</div>
+      <div class="chat-menu-item" data-action="close">Закрыть чат</div>
+      <div class="chat-menu-item" data-action="chats">Все чаты</div>
+      <div class="chat-menu-item" data-action="new">Новый чат</div>
+      <div class="chat-menu-item" data-action="checkpoint">Чекпоинт</div>
+      <div class="chat-menu-item" data-action="delete_messages">Удалить сообщения</div>
+      <div class="chat-menu-item" data-action="generate">Генерация промпта</div>
       <div style="border-top:1px solid #333; margin:4px 12px;"></div>
-      <div class="chat-menu-item" data-action="mode_user" style="padding:8px 16px; cursor:pointer;">👤 Режим User</div>
-      <div class="chat-menu-item" data-action="mode_char" style="padding:8px 16px; cursor:pointer;">🤖 Режим Char</div>
+      <div class="chat-menu-item" data-action="mode_user">Режим User</div>
+      <div class="chat-menu-item" data-action="mode_char">Режим Char</div>
     `;
     dropdown.style.display = 'block';
     chatMenuOpen = true;
@@ -260,22 +464,9 @@ async function handleChatMenuAction(action) {
       }
       break;
 
-    case 'delete_messages': {
-      const indicesStr = await showPrompt(
-        'Индексы видны как #0, #1 рядом с каждым сообщением.',
-        '',
-        { title: 'Удалить сообщения (через запятую, напр. 1,2,5)' }
-      );
-      if (indicesStr) {
-        const indices = indicesStr.split(',').map(s => parseInt(s.trim())).filter(n => !isNaN(n));
-        if (indices.length) {
-          await deleteMessages(window.currentChatId, indices);
-          await renderChat();
-          showToast('Сообщения удалены', 'success');
-        }
-      }
+    case 'delete_messages':
+      enterDeleteMode();
       break;
-    }
 
     case 'generate':
       if (window.currentChatId) {
@@ -303,6 +494,51 @@ async function handleChatMenuAction(action) {
 
     default:
       break;
+  }
+}
+
+// ============================================================
+// РЕЖИМ УДАЛЕНИЯ СООБЩЕНИЙ
+// ============================================================
+
+function enterDeleteMode() {
+  deleteModeActive = true;
+  selectedMessageIndices.clear();
+
+  const actions = document.getElementById('deleteModeActions');
+  if (actions) actions.style.display = 'inline';
+
+  document.querySelectorAll('.message-row').forEach(row => {
+    row.classList.add('selectable');
+    row.style.cursor = 'pointer';
+  });
+
+  const dropdown = document.getElementById('chatMenuDropdown');
+  if (dropdown) dropdown.style.display = 'none';
+  chatMenuOpen = false;
+}
+
+function exitDeleteMode() {
+  deleteModeActive = false;
+  selectedMessageIndices.clear();
+
+  const actions = document.getElementById('deleteModeActions');
+  if (actions) actions.style.display = 'none';
+
+  document.querySelectorAll('.message-row').forEach(row => {
+    row.classList.remove('selectable', 'selected-for-delete');
+    row.style.cursor = '';
+  });
+}
+
+function toggleMessageSelection(row, index) {
+  if (!deleteModeActive) return;
+  if (row.classList.contains('selected-for-delete')) {
+    row.classList.remove('selected-for-delete');
+    selectedMessageIndices.delete(index);
+  } else {
+    row.classList.add('selected-for-delete');
+    selectedMessageIndices.add(index);
   }
 }
 
@@ -336,7 +572,7 @@ async function generateAndCopyPrompt(userMessage) {
 }
 
 // ============================================================
-// МОДАЛЬНОЕ ОКНО "ВСЕ ЧАТЫ"
+// МОДАЛЬНОЕ ОКНО "ВСЕ ЧАТЫ" (с иконками)
 // ============================================================
 
 async function showAllChatsModal() {
@@ -355,13 +591,12 @@ async function showAllChatsModal() {
           <div class="name">${escHtml(c.name)}</div>
           <div class="sub">${new Date(c.updated).toLocaleString()}</div>
         </div>
-        <button class="btn btn-sm btn-outline" data-action="export_json">⬇️ JSON</button>
-        <button class="btn btn-sm btn-outline" data-action="export_txt">⬇️ TXT</button>
-        <button class="btn btn-sm btn-danger" data-action="delete">🗑️</button>
+        <button class="preset-tool-btn" data-action="export_json" title="Экспорт JSON">${window.iconImg('export', 'JSON', 16, 16)}</button>
+        <button class="preset-tool-btn" data-action="export_txt" title="Экспорт TXT">${window.iconImg('export', 'TXT', 16, 16)}</button>
+        <button class="preset-tool-btn" data-action="delete" title="Удалить">${window.iconImg('delete', 'Удалить', 16, 16)}</button>
       </div>
     `).join('');
 
-    // Обработчики внутри модалки
     body.querySelectorAll('.card-item').forEach(el => {
       el.addEventListener('click', function(e) {
         if (e.target.closest('button')) return;
@@ -423,7 +658,6 @@ async function showAllChatsModal() {
 // ============================================================
 
 function showAvatarPreview(src, name) {
-  // Удаляем старый предпросмотр, если есть
   const old = document.getElementById('avatar-preview-container');
   if (old) old.remove();
 
@@ -448,12 +682,10 @@ function showAvatarPreview(src, name) {
 
   document.body.appendChild(container);
 
-  // Закрытие по крестику
   document.getElementById('avatarPreviewClose').addEventListener('click', () => {
     container.remove();
   });
 
-  // Закрытие по клику вне изображения (по фону)
   container.addEventListener('click', (e) => {
     if (e.target === container) container.remove();
   });
@@ -463,12 +695,11 @@ function showAvatarPreview(src, name) {
 // РЕДАКТИРОВАНИЕ СООБЩЕНИЙ
 // ============================================================
 
-let activeEditRow = null;       // ссылка на редактируемый .message-row
-let originalText = '';          // исходный текст сообщения
-let editIndex = null;           // индекс редактируемого сообщения
+let activeEditRow = null;
+let originalText = '';
+let editIndex = null;
 
 function startEditMessage(row, index, role) {
-  // Закрываем предыдущее редактирование
   cancelEdit();
 
   const textDiv = row.querySelector('.message-text');
@@ -480,16 +711,13 @@ function startEditMessage(row, index, role) {
   editIndex = index;
   activeEditRow = row;
 
-  // Создаём textarea
   const textarea = document.createElement('textarea');
   textarea.className = 'edit-textarea';
   textarea.value = originalText;
   textDiv.replaceWith(textarea);
 
-  // Скрываем кнопку редактирования
   editBtn.style.display = 'none';
 
-  // Создаём панель действий (галочка и крестик)
   const header = row.querySelector('.message-header');
   const actions = document.createElement('div');
   actions.className = 'edit-actions';
@@ -498,10 +726,8 @@ function startEditMessage(row, index, role) {
     <button class="edit-cancel-btn" title="Отменить">${window.iconImg('close', 'Отменить', 18, 18)}</button>
   `;
 
-  // Вставляем actions ПОСЛЕ header (перед textarea)
   header.parentNode.insertBefore(actions, textarea);
 
-  // Обработчики
   actions.querySelector('.edit-confirm-btn').addEventListener('click', async function() {
     const newText = textarea.value.trim();
     if (!newText) {
@@ -510,8 +736,9 @@ function startEditMessage(row, index, role) {
     }
     try {
       await editMessage(window.currentChatId, index, newText);
+      // После редактирования сбрасываем пагинацию, чтобы обновить список
+      resetPagination(window.currentChatId);
       await renderChat();
-      showToast('Сообщение обновлено', 'success');
     } catch (e) {
       showToast('Ошибка сохранения', 'error');
     }
@@ -521,7 +748,6 @@ function startEditMessage(row, index, role) {
     cancelEdit();
   });
 
-  // Автофокус
   textarea.focus();
   textarea.select();
 }
@@ -529,7 +755,6 @@ function startEditMessage(row, index, role) {
 function cancelEdit() {
   if (!activeEditRow) return;
 
-  // Восстанавливаем исходный текст
   const textarea = activeEditRow.querySelector('.edit-textarea');
   if (textarea) {
     const textDiv = document.createElement('div');
@@ -538,15 +763,12 @@ function cancelEdit() {
     textarea.replaceWith(textDiv);
   }
 
-  // Показываем кнопку редактирования
   const editBtn = activeEditRow.querySelector('.edit-msg-btn');
   if (editBtn) editBtn.style.display = 'inline-flex';
 
-  // Удаляем панель действий
   const actions = activeEditRow.querySelector('.edit-actions');
   if (actions) actions.remove();
 
-  // Сбрасываем состояние
   activeEditRow = null;
   originalText = '';
   editIndex = null;

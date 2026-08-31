@@ -1,4 +1,6 @@
-
+// ============================================================
+// BACKGROUND — управление фонами
+// ============================================================
 
 const MAX_THUMBS = 10;
 
@@ -13,9 +15,15 @@ async function renderBackgroundPanel() {
 
     body.innerHTML = `
       <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:12px;">
-        <button class="btn btn-sm" id="addBgBtn">➕ Добавить фон</button>
-        <button class="btn btn-sm btn-danger" id="deleteSelectedBgBtn" ${selected ? '' : 'disabled'}>🗑️ Удалить выбранный</button>
-        <button class="btn btn-sm btn-danger" id="resetBgBtn">🔄 Сбросить все</button>
+        <button class="tool-btn" id="addBgBtn" title="Добавить фон">
+          ${window.iconImg('add', 'Добавить', 18, 18)} Добавить фон
+        </button>
+        <button class="tool-btn" id="deleteSelectedBgBtn" title="Удалить выбранный" ${selected ? '' : 'disabled'}>
+          ${window.iconImg('delete', 'Удалить', 18, 18)} Удалить выбранный
+        </button>
+        <button class="tool-btn" id="resetBgBtn" title="Сбросить все">
+          ${window.iconImg('refresh', 'Сбросить', 18, 18)} Сбросить все
+        </button>
       </div>
       <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(120px,1fr)); gap:12px;">
         ${thumbnails.length === 0 ? '<p style="color:#666; grid-column:1/-1;">Нет фонов</p>' :
@@ -90,4 +98,3 @@ async function renderBackgroundPanel() {
     console.error(e);
   }
 }
-

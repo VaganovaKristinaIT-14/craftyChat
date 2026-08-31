@@ -348,8 +348,7 @@ nav {
 .card-item:hover { background: var(--ink-4); transform: translateY(-1px); }
 .card-item.active {
   border-color: var(--amber);
-  background: linear-gradient(180deg, #2a2334, #241f2c);
-  box-shadow: 0 0 0 1px #e6a64830, 0 8px 20px -8px #e6a64840;
+
 }
 .card-avatar {
   width: 42px; height: 42px;
@@ -372,7 +371,126 @@ nav {
   font-size: 14px; color: var(--paper-faint);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   margin-top: 2px;
+}/* ===== Главная страница — карточки чатов ===== */
+.chat-preview-card {
+  display: flex;
+  align-items: stretch;
+  background: var(--ink-2);
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius-md);
+  padding: 12px 16px;
+  gap: 16px;
+  cursor: pointer;
+  transition: 0.15s ease;
 }
+.chat-preview-card:hover {
+  background: var(--ink-3);
+  border-color: var(--line);
+}
+
+.chat-preview-avatar {
+  flex: 0 0 60px;
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  overflow: hidden;
+  background: var(--ink-4);
+  border: 1px solid var(--line);
+  align-self: center;
+}
+.chat-preview-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.chat-preview-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.chat-preview-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+.chat-preview-info {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.chat-preview-char {
+  font-weight: 700;
+  color: var(--paper);
+  font-size: 18px;
+}
+.chat-preview-name {
+  font-size: 17px;
+  color: var(--paper-faint);
+  font-weight: 400;
+}
+.chat-preview-meta {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+.chat-preview-date {
+  font-size: 12px;
+  color: var(--paper-faint);
+  white-space: nowrap;
+}
+.chat-preview-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.chat-preview-footer {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.chat-preview-msg-count {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 16px;
+  color: var(--paper-faint);
+}
+.chat-preview-msg-count img {
+  filter: brightness(0) saturate(100%) invert(73%) sepia(8%) saturate(500%) hue-rotate(0deg) brightness(95%) contrast(90%);
+}
+.chat-preview-last-msg {
+  font-size: 14px;
+  color: var(--paper-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 60%;
+}
+
+/* Кнопки в карточках (иконки белые) */
+.chat-preview-actions .preset-tool-btn {
+  padding: 2px 4px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+}
+.chat-preview-actions .preset-tool-btn img {
+  filter: brightness(0) saturate(100%) invert(1) brightness(1);
+  transition: 0.15s;
+}
+.chat-preview-actions .preset-tool-btn:hover {
+  background: var(--ink-4);
+  border-radius: 4px;
+}
+
+
 
 /* ===== FORMS ===== */
 textarea, input[type="text"], input[type="number"], select {
@@ -459,6 +577,11 @@ label {
 }
 .toast.hidden { opacity: 0; transform: translateX(-50%) translateY(-20px); }
 
+/* ===== Активная персона ===== */
+.active-icon img {
+  filter: brightness(0) saturate(100%) invert(76%) sepia(56%) saturate(612%) hue-rotate(3deg) brightness(95%) contrast(95%);
+}
+
 /* ===== CHAT — the script ===== */
 
 /* --- Область сообщений --- */
@@ -469,6 +592,7 @@ label {
   display: flex;
   flex-direction: column;
   gap: 16px;
+  min-height: 0;
 }
 
 /* --- Ряд сообщения --- */
@@ -508,8 +632,23 @@ label {
 /* --- Шапка сообщения: имя + время --- */
 .message-header {
   display: flex;
+  align-items: center;
+  justify-content: space-between; /* Расталкиваем дату и кнопку */
+  width: 100%;
+  margin-bottom: 4px;
+   gap: 12px;
+}
+.message-info-left {
+  display: flex;
   align-items: baseline;
-  gap: 8px;
+  gap: 10px;
+}
+
+.message-actions-right {
+  display: flex;
+  gap: 4px;
+  opacity: 0; /* Скрываем кнопки по умолчанию */
+  transition: opacity 0.15s ease;
 }
 
 .message-author {
@@ -546,11 +685,20 @@ label {
 .chat-input-row textarea {
   flex: 1;
   min-height: 42px;
-  max-height: 120px;
+  max-height: 288px;          /* 12 строк при line-height: 1.5, font-size: 16px */
+  overflow-y: auto;           /* включаем прокрутку при превышении */
   resize: none;
   background: var(--ink-0);
   border-radius: var(--radius-md);
+  border: 1px solid var(--line);
+  color: var(--paper);
+  padding: 10px 14px;
+  font-family: var(--font-body);
+  font-size: 16px;
+  line-height: 1.5;
+  transition: border-color 0.15s;
 }
+
 .chat-input-row .btn {
   height: 42px;
   width: 42px;
@@ -651,6 +799,22 @@ label {
 .edit-actions .edit-cancel-btn:hover {
   color: #e74c6f;
   background: var(--ink-4);
+}
+
+/* ===== Режим выбора сообщений для удаления ===== */
+.message-row.selectable {
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.message-row.selectable:hover {
+  background: var(--ink-3);
+}
+.message-row.selected-for-delete {
+  background: var(--wine) !important;
+  opacity: 0.8;
+}
+.message-row.selected-for-delete .message-text {
+  color: #fff;
 }
 
 /* ===== ПРЕДПРОСМОТР АВАТАРКИ СЛЕВА (без затемнения) ===== */
@@ -1168,7 +1332,153 @@ label {
   padding: 20px 0;
 }
 
-/* ----- Саммари ----- */
+/* ===== Стили для лорбуков ===== */
+
+/* Кнопка "Добавить запись" – золотая обводка, без фона */
+.add-entry-btn {
+  background: transparent;
+  border: 1px solid var(--amber);
+  border-radius: 6px;
+  color: var(--paper-dim);
+  padding: 6px 12px;
+  font-size: 14px;
+  font-family: var(--font-body);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: 0.15s;
+}
+.add-entry-btn:hover {
+  background: var(--ink-3);
+  border-color: var(--amber-bright);
+  color: var(--paper);
+}
+
+/* Статус-кружки (вместо текстовых бейджей) */
+.status-dot {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 1px solid var(--line);
+  flex-shrink: 0;
+}
+
+/* Переключатель активности (как в пресетах) */
+.switch {
+  position: relative;
+  display: inline-block;
+  width: 36px;
+  height: 20px;
+}
+.switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+.slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: #555;
+  border-radius: 20px;
+  transition: 0.3s;
+}
+.slider::before {
+  content: "";
+  position: absolute;
+  height: 14px;
+  width: 14px;
+  left: 3px;
+  bottom: 3px;
+  background: #fff;
+  border-radius: 50%;
+  transition: 0.3s;
+}
+input:checked + .slider {
+  background: var(--amber);
+}
+input:checked + .slider::before {
+  transform: translateX(16px);
+}
+
+/* Поле ключевых слов – обводка */
+.keywords-container {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  padding: 6px;
+  background: var(--ink-0);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+.keyword-chip {
+  background: var(--ink-4);
+  padding: 4px 8px;
+  border-radius: 16px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+}
+.keyword-chip button {
+  background: transparent;
+  border: none;
+  color: var(--paper-faint);
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
+}
+.keyword-chip button:hover {
+  color: var(--wine);
+}
+
+/* Кнопки внутри записей (как в пресетах) */
+.entry-controls button {
+  background: transparent;
+  border: none;
+  padding: 2px 4px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: 0.15s;
+}
+.entry-controls button:hover {
+  background: var(--ink-4);
+}
+.entry-controls button img {
+  filter: brightness(0) saturate(100%) invert(1) brightness(1);
+}
+
+/* Кнопка закрытия деталей */
+.close-detail-btn {
+  background: transparent;
+  border: none;
+  color: var(--paper-faint);
+  cursor: pointer;
+  padding: 2px;
+}
+.close-detail-btn:hover {
+  color: var(--paper);
+}
+
+/* Drag-and-drop – визуальный отклик */
+.entry-card.dragging {
+  opacity: 0.5;
+}
+.entry-card.drag-over {
+  border-color: var(--amber);
+}
+
+/* ======= Саммари ========*/
 .summary-placeholder {
   text-align: center;
   color: var(--paper-faint);
@@ -1214,6 +1524,16 @@ label {
 }
 .summary-prompt-section {
   margin-bottom: 20px;
+}
+.summary-label {
+  font-size: 16px;
+  color: var(--amber-bright); /* светлый золотой */
+  display: block;
+  margin-bottom: 6px;
+  font-family: var(--font-body);
+  text-transform: none;
+  font-weight: 400;
+  letter-spacing: normal;
 }
 .summary-prompt-text {
   width: 100%;
@@ -1298,6 +1618,96 @@ label {
 }
 .edit-summary-btn {
   margin-top: 6px;
+}
+
+/* ===== Кнопка с золотой обводкой (для саммари и др.) ===== */
+.gold-outline-btn {
+  background: transparent !important;
+  border: 1px solid var(--amber) !important;
+  border-radius: 6px;
+  color: var(--paper-dim);
+  padding: 6px 14px;
+  font-size: 14px;
+  font-family: var(--font-body);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: 0.15s ease;
+}
+.gold-outline-btn:hover {
+  background: var(--ink-3) !important;
+  border-color: var(--amber-bright) !important;
+  color: var(--paper);
+}
+.gold-outline-btn img {
+  filter: brightness(0) saturate(100%) invert(73%) sepia(8%) saturate(500%) hue-rotate(0deg) brightness(95%) contrast(90%);
+  transition: filter 0.15s ease;
+}
+.gold-outline-btn:hover img {
+  filter: brightness(0) saturate(100%) invert(1) brightness(1);
+}
+
+
+/* ===== Переопределение для кнопок с жёлтым фоном (глобальные стили) ===== */
+#generateSummaryBtn.gold-outline-btn,
+#addEmptySummaryBtn.gold-outline-btn {
+  background: transparent !important;
+  border: 1px solid var(--amber) !important;
+  color: var(--paper-dim);
+}
+#generateSummaryBtn.gold-outline-btn:hover,
+#addEmptySummaryBtn.gold-outline-btn:hover {
+  background: var(--ink-3) !important;
+  border-color: var(--amber-bright) !important;
+  color: var(--paper);
+}
+
+/* ===== Список блоков саммари с прокруткой ===== */
+.blocks-list {
+  max-height: 50vh;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+.blocks-list::-webkit-scrollbar {
+  width: 6px;
+}
+.blocks-list::-webkit-scrollbar-thumb {
+  background: var(--line);
+  border-radius: 4px;
+}
+.blocks-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* ===== Кнопки внутри блоков саммари (как в пресетах) ===== */
+.summary-block .preset-tool-btn {
+  background: transparent;
+  border: none;
+  padding: 2px 4px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: 0.15s;
+}
+.summary-block .preset-tool-btn:hover {
+  background: var(--ink-4);
+}
+.summary-block .preset-tool-btn img {
+  filter: brightness(0) saturate(100%) invert(1) brightness(1);
+}
+
+/* ===== Заголовок блока (имя) — pointer ===== */
+.block-name {
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 15px;
+  color: var(--paper);
+}
+.block-name:hover {
+  color: var(--amber);
 }
 
 /* ============================================================
@@ -1463,7 +1873,8 @@ label {
 }
 .lightbox-close:hover { background: var(--wine); }
 
-/* ===== Кнопка отправки (без жёлтого фона) ===== */
+
+/* ===== Кнопка отправки — иконка белая ===== */
 #sendChatBtn {
   background: transparent !important;
   border: 1px solid var(--line);
@@ -1476,8 +1887,177 @@ label {
   align-items: center;
   justify-content: center;
 }
+#sendChatBtn img {
+  filter: brightness(0) saturate(100%) invert(1) brightness(1);
+}
 #sendChatBtn:hover {
   background: var(--ink-3) !important;
   border-color: var(--paper-dim);
 }
 
+/* ===== Кнопки в верхней панели пресетов (белые иконки, без фона/рамки) ===== */
+.preset-tool-btn {
+  background: transparent;
+  border: none;
+  padding: 4px 6px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: 0.15s;
+  border-radius: 4px;
+}
+.preset-tool-btn:hover {
+  background: var(--ink-4);
+}
+.preset-tool-btn img {
+  filter: brightness(0) saturate(100%) invert(1) brightness(1); /* белый цвет */
+}
+/* ===== Метки полей ввода пресетов (как "Макс. длина") ===== */
+.preset-label {
+  font-size: 14px;
+  color: var(--paper);
+  display: block;
+  margin-bottom: 4px;
+  font-weight: 400;
+  font-family: var(--font-body);
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+/* ===== Кнопки внутри блоков пресетов (только иконки, без рамок) ===== */
+.preset-item .edit-preset,
+.preset-item .delete-preset {
+  background: transparent;
+  border: none;
+  padding: 2px 4px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: 0.15s;
+}
+.preset-item .edit-preset:hover,
+.preset-item .delete-preset:hover {
+  background: var(--ink-4);
+}
+.preset-item .edit-preset img,
+.preset-item .delete-preset img {
+  filter: brightness(0) saturate(100%) invert(1) brightness(1); /* белый цвет */
+}
+
+.preset-tool-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* ===== Кастомный переключатель (кружок) ===== */
+.switch {
+  position: relative;
+  display: inline-block;
+  width: 36px;
+  height: 20px;
+}
+.switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+.slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: #555;
+  border-radius: 20px;
+  transition: 0.3s;
+}
+.slider::before {
+  content: "";
+  position: absolute;
+  height: 14px;
+  width: 14px;
+  left: 3px;
+  bottom: 3px;
+  background: #fff;
+  border-radius: 50%;
+  transition: 0.3s;
+}
+input:checked + .slider {
+  background: var(--amber);
+}
+input:checked + .slider::before {
+  transform: translateX(16px);
+}
+
+/* ===== Ползунок (светло-серый) ===== */
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 6px;
+  background: #777;
+  border-radius: 3px;
+  outline: none;
+  transition: background 0.2s;
+}
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #ccc;
+  cursor: pointer;
+  border: 1px solid #888;
+}
+input[type="range"]::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #ccc;
+  cursor: pointer;
+  border: 1px solid #888;
+}
+input[type="range"]::-webkit-slider-thumb:hover {
+  background: #ddd;
+}
+input[type="range"]::-moz-range-thumb:hover {
+  background: #ddd;
+}
+
+/* ===== Универсальная кнопка с рамкой (для фонов, пресетов и т.д.) ===== */
+.tool-btn {
+  background: transparent;
+  border: 1px solid var(--line-soft);
+  border-radius: 6px;
+  padding: 6px 12px;
+  color: var(--paper-dim);
+  font-size: 14px;
+  font-family: var(--font-body);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: 0.15s ease;
+  white-space: nowrap;
+}
+.tool-btn:hover {
+  background: var(--ink-3);
+  border-color: var(--paper-dim);
+  color: var(--paper);
+}
+.tool-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.tool-btn img {
+  filter: brightness(0) saturate(100%) invert(73%) sepia(8%) saturate(500%) hue-rotate(0deg) brightness(95%) contrast(90%);
+  transition: filter 0.15s ease;
+}
+.tool-btn:hover img {
+  filter: brightness(0) saturate(100%) invert(1) brightness(1);
+}

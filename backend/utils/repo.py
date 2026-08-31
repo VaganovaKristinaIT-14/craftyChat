@@ -220,16 +220,20 @@ def _chat_path(chat_id):
 def default_chat(character_id, persona_id=None, name=None):
     settings = get_settings()
     character = get_character(character_id)
+    if name is None:
+        existing_chats = get_chats_by_character(character_id)
+        number = len(existing_chats) + 1
+        name = f"Chat {number}"
     return {
         "id": generate_id(),
         "character_id": character_id,
         "persona_id": persona_id,
-        "name": name or f"Чат с {character['name'] if character else 'персонажем'}",
+        "name": name,
         "messages": [],
         "summary_blocks": [],
         "last_summarized_index": -1,
         "step_size": settings.get("summary_step_size", 10),
-        "mode": "user",   # "user" | "char" — чья сейчас очередь отвечать
+        "mode": "user",
         "pinned": False,
         "created": _now_iso(),
         "updated": _now_iso(),

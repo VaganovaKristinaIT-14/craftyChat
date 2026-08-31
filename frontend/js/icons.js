@@ -18,6 +18,11 @@ export const ICONS = {
   send: `${ICON_BASE}send.svg`,
   ok: `${ICON_BASE}ok.svg`,
 close: `${ICON_BASE}close.svg`,
+  delete: `${ICON_BASE}delete.svg`,
+  refresh: `${ICON_BASE}refresh.svg`,
+  add_phot: `${ICON_BASE}add_phot.svg`,
+  message: `${ICON_BASE}message.svg`,
+   pin: `${ICON_BASE}pin.svg`,
 };
 
 export function iconImg(name, alt = '', width = 18, height = 18) {

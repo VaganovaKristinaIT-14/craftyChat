@@ -2,17 +2,8 @@
 // LOREBOOKS — полное управление лорбуками (с улучшениями)
 // ============================================================
 
-
-
 let selectedLorebookId = null;
-let expandedEntries = new Set();
-
-// Читаемые названия статусов
-const STATUS_MAP = {
-  constant: { label: 'Постоянная', color: '#f39c12', icon: '🔒' },
-  normal:   { label: 'Обычная', color: '#4a6cf7', icon: '📄' },
-  vector:   { label: 'Векторная', color: '#9b59b6', icon: '📚' }
-};
+let expandedEntries = new Set(); // содержит id записей, у которых раскрыты детали
 
 async function renderLorebooksPanel() {
   const body = document.getElementById('central-panel-body');
@@ -23,86 +14,93 @@ async function renderLorebooksPanel() {
     if (!selectedLorebookId && lorebooks.length > 0) selectedLorebookId = lorebooks[0].id;
     if (selectedLorebookId && !lorebooks.find(l => l.id === selectedLorebookId)) selectedLorebookId = null;
 
-    // --- Шапка ---
+    // --- Шапка (без фона и статистики) ---
     let html = `
-      <div class="lorebook-header">
-        <div class="lorebook-selector">
-          <select id="lorebookSelect" class="lorebook-select">
-            ${lorebooks.map(l => `<option value="${l.id}" ${l.id === selectedLorebookId ? 'selected' : ''}>${escHtml(l.name)}</option>`).join('')}
-          </select>
-          <button class="btn btn-sm" id="createLorebookBtn" title="Создать новый мир">➕</button>
-          <button class="btn btn-sm btn-outline" id="renameLorebookBtn" title="Переименовать мир">✎</button>
-          <button class="btn btn-sm" id="duplicateLorebookBtn" title="Создать копию мира">📋</button>
-          <button class="btn btn-sm btn-danger" id="deleteLorebookBtn" title="Удалить мир">🗑️</button>
-          <button class="btn btn-sm" id="exportLorebookBtn" title="Экспортировать мир">⬇️</button>
-          <button class="btn btn-sm" id="importLorebookBtn" title="Импортировать мир">⬆️</button>
-        </div>
-        <div class="lorebook-stats">
-          <span class="stat-badge">📚 ${lorebooks.length} миров</span>
-          ${selectedLorebookId ? `<span class="stat-badge">📝 ${lorebooks.find(l => l.id === selectedLorebookId)?.entries?.length || 0} записей</span>` : ''}
-        </div>
+      <div style="display:flex; align-items:center; gap:6px; margin-bottom:16px; flex-wrap:wrap;">
+        <select id="lorebookSelect" style="background:var(--ink-0); color:var(--paper); border:1px solid var(--line); border-radius:4px; padding:4px 8px; min-width:160px;">
+          ${lorebooks.map(l => `<option value="${l.id}" ${l.id === selectedLorebookId ? 'selected' : ''}>${escHtml(l.name)}</option>`).join('')}
+        </select>
+        <button class="preset-tool-btn" id="createLorebookBtn" title="Создать новый мир">${window.iconImg('add', 'Создать', 18, 18)}</button>
+        <button class="preset-tool-btn" id="renameLorebookBtn" title="Переименовать мир">${window.iconImg('rename', 'Переименовать', 18, 18)}</button>
+        <button class="preset-tool-btn" id="duplicateLorebookBtn" title="Создать копию мира">${window.iconImg('copy', 'Копировать', 18, 18)}</button>
+        <button class="preset-tool-btn" id="deleteLorebookBtn" title="Удалить мир">${window.iconImg('delete', 'Удалить', 18, 18)}</button>
+        <button class="preset-tool-btn" id="exportLorebookBtn" title="Экспортировать мир">${window.iconImg('export', 'Экспорт', 18, 18)}</button>
+        <button class="preset-tool-btn" id="importLorebookBtn" title="Импортировать мир">${window.iconImg('import', 'Импорт', 18, 18)}</button>
       </div>
     `;
 
     const lb = lorebooks.find(l => l.id === selectedLorebookId);
     if (lb) {
       html += `
-        <div class="world-header">
-          <h3 class="world-name">🌍 ${escHtml(lb.name)}</h3>
-          <button class="btn btn-sm" id="addEntryBtn">➕ Добавить запись</button>
+        <div class="world-header" style="display:flex; justify-content:space-between; align-items:center; margin:8px 0 16px;">
+          <h3 class="world-name" style="font-family:var(--font-display); font-size:22px; font-weight:560; margin:0;">${escHtml(lb.name)}</h3>
+          <button class="add-entry-btn" id="addEntryBtn" title="Добавить запись">
+            ${window.iconImg('add', 'Добавить запись', 18, 18)} Добавить запись
+          </button>
         </div>
         <div id="entriesList" class="entries-grid">
           ${lb.entries.length === 0 ? '<p class="empty-message">Нет записей. Создайте первую!</p>' :
-            lb.entries.map(e => {
+            // сортируем записи по order (если есть)
+            lb.entries.slice().sort((a, b) => (a.order || 0) - (b.order || 0)).map(e => {
               const isExpanded = expandedEntries.has(e.id);
-              const status = STATUS_MAP[e.status] || STATUS_MAP.normal;
-              const priorityEmoji = e.priority <= 3 ? '🔴' : e.priority <= 6 ? '🟡' : '🟢';
+              // статус – только цветной кружок
+              const statusColor = e.status === 'constant' ? 'var(--amber)' :
+                                  e.status === 'vector' ? 'var(--paper-faint)' :
+                                  '#4caf50'; // normal – зеленый
               return `
-                <div class="entry-card ${e.active ? 'active' : 'inactive'}" data-id="${e.id}">
+                <div class="entry-card ${e.active ? 'active' : 'inactive'}" data-id="${e.id}" draggable="true">
                   <div class="entry-header">
                     <div class="entry-title">
                       <span class="drag-handle" title="Перетащите для изменения порядка">⠿</span>
                       <span class="entry-name">${escHtml(e.name)}</span>
-                      <button class="rename-entry-btn btn btn-sm btn-outline" data-id="${e.id}" title="Переименовать запись">✎</button>
-                      <span class="status-badge" style="background:${status.color}; color:#fff;" title="${status.label}">${status.icon} ${status.label}</span>
-                      <span class="priority-badge" title="Приоритет: ${e.priority} (1 — самый важный)">${priorityEmoji} ${e.priority}</span>
+                      <span class="status-dot" style="display:inline-block; width:12px; height:12px; border-radius:50%; background:${statusColor}; margin-left:6px;" title="${e.status}"></span>
+                      <span class="priority-badge" style="font-size:12px; background:var(--ink-4); padding:2px 8px; border-radius:12px; color:var(--paper-dim);">${e.priority}</span>
                     </div>
                     <div class="entry-controls">
-                      <label class="toggle-label" title="${e.active ? 'Активна' : 'Неактивна'}">
+                      <label class="switch" title="${e.active ? 'Активна' : 'Неактивна'}">
                         <input type="checkbox" class="entry-active" ${e.active ? 'checked' : ''}>
-                        <span class="toggle-slider"></span>
+                        <span class="slider"></span>
                       </label>
-                      <button class="btn btn-sm btn-danger delete-entry-btn" data-id="${e.id}" title="Удалить запись">✕</button>
+                      <button class="edit-entry-btn" data-id="${e.id}" title="Редактировать запись">${window.iconImg('rename', 'Редактировать', 14, 14)}</button>
+                      <button class="delete-entry-btn" data-id="${e.id}" title="Удалить запись">${window.iconImg('delete', 'Удалить', 14, 14)}</button>
                     </div>
                   </div>
                   <div class="entry-detail" style="display:${isExpanded ? 'block' : 'none'};">
+                    <div style="display:flex; justify-content:flex-end; margin-bottom:6px;">
+                      <button class="close-detail-btn" data-id="${e.id}" title="Закрыть" style="background:transparent; border:none; color:var(--paper-faint); cursor:pointer;">${window.iconImg('close', 'Закрыть', 16, 16)}</button>
+                    </div>
                     <div class="entry-field">
-                      <label>🔑 Ключевые слова (введите слово и нажмите Enter)</label>
-                      <div class="keywords-container">
-                        ${e.keywords.map(k => `<span class="keyword-chip">${escHtml(k)} <button class="remove-keyword" data-keyword="${k}">✕</button></span>`).join('')}
+                      <label class="preset-label">Ключевые слова</label>
+                      <div class="keywords-container" style="display:flex; flex-wrap:wrap; gap:6px; border:1px solid var(--line); border-radius:var(--radius-sm); padding:6px; background:var(--ink-0);">
+                        ${e.keywords.map(k => `
+                          <span class="keyword-chip" style="background:var(--ink-4); padding:4px 8px; border-radius:16px; display:inline-flex; align-items:center; gap:4px; font-size:13px;">
+                            ${escHtml(k)}
+                            <button class="remove-keyword" data-keyword="${k}" style="background:transparent; border:none; color:var(--paper-faint); cursor:pointer; padding:0; line-height:1;">${window.iconImg('close', 'Удалить', 12, 12)}</button>
+                          </span>
+                        `).join('')}
+                        <input class="add-keyword-input" placeholder="Введите ключевое слово..." style="border:none; background:transparent; color:var(--paper); padding:4px; flex:1; min-width:80px; outline:none; font-size:14px;">
                       </div>
-                      <input class="add-keyword-input" placeholder="Например: замок, принц, магия" />
                     </div>
                     <div class="entry-field row">
                       <div class="field-group">
-                        <label>🎯 Приоритет (1–10)</label>
+                        <label class="preset-label">Приоритет (1–10)</label>
                         <input type="number" class="entry-priority" value="${e.priority}" min="1" max="10" title="1 — самый высокий приоритет" />
                       </div>
                       <div class="field-group">
-                        <label>🔍 Глубина сканирования (%)</label>
+                        <label class="preset-label">Глубина сканирования (%)</label>
                         <input type="number" class="entry-depth" value="${e.scan_depth}" min="0" max="100" title="Насколько далеко в истории искать ключевые слова" />
                       </div>
                       <div class="field-group">
-                        <label>📌 Статус</label>
+                        <label class="preset-label">Статус</label>
                         <select class="entry-status">
-                          <option value="constant" ${e.status === 'constant' ? 'selected' : ''}>Постоянная (всегда)</option>
-                          <option value="normal" ${e.status === 'normal' ? 'selected' : ''}>Обычная (по ключевым словам)</option>
-                          <option value="vector" ${e.status === 'vector' ? 'selected' : ''}>Векторная (общий блок)</option>
+                          <option value="constant" ${e.status === 'constant' ? 'selected' : ''}>Постоянная</option>
+                          <option value="normal" ${e.status === 'normal' ? 'selected' : ''}>Обычная</option>
+                          <option value="vector" ${e.status === 'vector' ? 'selected' : ''}>Векторная</option>
                         </select>
                       </div>
                     </div>
                     <div class="entry-field">
-                      <label>📄 Содержание записи</label>
+                      <label class="preset-label">Содержание записи</label>
                       <textarea class="entry-content" rows="3" placeholder="Текст, который будет добавлен в промпт при активации записи">${escHtml(e.content)}</textarea>
                     </div>
                   </div>
@@ -137,7 +135,7 @@ async function renderLorebooksPanel() {
       renderLorebooksPanel();
     });
 
-    // 3. Переименовать мир
+    // 3. Переименовать мир – без тоста
     document.getElementById('renameLorebookBtn')?.addEventListener('click', async () => {
       const id = document.getElementById('lorebookSelect').value;
       const name = await showPrompt('Новое название мира', '', { title: 'Переименовать мир' });
@@ -145,7 +143,7 @@ async function renderLorebooksPanel() {
         await renameLorebook(id, name);
         window.markDirty('lorebooks');
         renderLorebooksPanel();
-        showToast('Мир переименован', 'success');
+        // убрали showToast
       }
     });
 
@@ -203,7 +201,7 @@ async function renderLorebooksPanel() {
       input.click();
     });
 
-    // 8. Добавить запись
+    // 8. Добавить запись – кастомная кнопка
     document.getElementById('addEntryBtn')?.addEventListener('click', async () => {
       const id = document.getElementById('lorebookSelect').value;
       await createLoreEntry(id, { name: 'Новая запись' });
@@ -212,8 +210,8 @@ async function renderLorebooksPanel() {
       showToast('Запись добавлена', 'success');
     });
 
-    // 9. Переименовать запись (новая кнопка ✎)
-    document.querySelectorAll('.rename-entry-btn').forEach(btn => {
+    // 9. Переименовать запись – без тоста
+    document.querySelectorAll('.edit-entry-btn').forEach(btn => {
       btn.addEventListener('click', async function(e) {
         e.stopPropagation();
         const card = this.closest('.entry-card');
@@ -225,32 +223,54 @@ async function renderLorebooksPanel() {
           await updateLoreEntry(worldId, entryId, { name: newName.trim() });
           window.markDirty('lorebooks');
           renderLorebooksPanel();
-          showToast('Запись переименована', 'success');
+          // убрали showToast
         }
       });
     });
 
-    // 10. Раскрытие/сворачивание записи (по клику на имя или на заголовок)
-    document.querySelectorAll('.entry-name, .entry-toggle').forEach(el => {
+    // 10. Раскрытие/сворачивание записи: только открытие по клику на имя, закрытие по крестику или клику вне
+    document.querySelectorAll('.entry-name').forEach(el => {
       el.addEventListener('click', function(e) {
-        // Игнорируем клик по кнопке переименования (они выше)
-        if (e.target.closest('.rename-entry-btn')) return;
         const card = this.closest('.entry-card');
         const id = card.dataset.id;
-        if (expandedEntries.has(id)) expandedEntries.delete(id);
-        else expandedEntries.add(id);
+        // Если уже открыто – не закрываем (только открываем)
+        if (!expandedEntries.has(id)) {
+          expandedEntries.add(id);
+          renderLorebooksPanel();
+        }
+      });
+    });
+
+    // Закрытие по крестику внутри деталей
+    document.querySelectorAll('.close-detail-btn').forEach(btn => {
+      btn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        const card = this.closest('.entry-card');
+        const id = card.dataset.id;
+        expandedEntries.delete(id);
         renderLorebooksPanel();
       });
     });
 
-    // 11. Включение/выключение записи
+    // Закрытие при клике вне карточки (глобально)
+    document.addEventListener('click', function onOutsideClick(e) {
+      const entriesList = document.getElementById('entriesList');
+      if (!entriesList) return;
+      if (!entriesList.contains(e.target)) {
+        if (expandedEntries.size > 0) {
+          expandedEntries.clear();
+          renderLorebooksPanel();
+        }
+      }
+    });
+
+    // 11. Включение/выключение записи (переключатель)
     document.querySelectorAll('.entry-active').forEach(cb => {
       cb.addEventListener('change', async function() {
         const card = this.closest('.entry-card');
         const entryId = card.dataset.id;
         const worldId = document.getElementById('lorebookSelect').value;
         await updateLoreEntry(worldId, entryId, { active: this.checked });
-        // обновляем визуал
         card.classList.toggle('active', this.checked);
         card.classList.toggle('inactive', !this.checked);
       });
@@ -271,7 +291,7 @@ async function renderLorebooksPanel() {
       });
     });
 
-    // 13. Добавление ключевого слова
+    // 13. Добавление ключевого слова (по Enter)
     document.querySelectorAll('.add-keyword-input').forEach(input => {
       input.addEventListener('keydown', async function(e) {
         if (e.key === 'Enter') {
@@ -287,7 +307,7 @@ async function renderLorebooksPanel() {
       });
     });
 
-    // 14. Удаление ключевого слова
+    // 14. Удаление ключевого слова (иконка close)
     document.querySelectorAll('.remove-keyword').forEach(btn => {
       btn.addEventListener('click', async function(e) {
         e.stopPropagation();
@@ -319,13 +339,51 @@ async function renderLorebooksPanel() {
       }, 500));
     });
 
-    // 16. Drag-and-drop (пока заглушка — можно добавить позже)
-    // Здесь можно добавить библиотеку Sortable или реализовать вручную.
-    // Пока оставим как есть.
+    // 16. Drag-and-drop (нативный)
+    let draggedItem = null;
+    const entries = document.querySelectorAll('.entry-card');
+    entries.forEach(entry => {
+      entry.addEventListener('dragstart', function(e) {
+        draggedItem = this;
+        this.style.opacity = '0.5';
+        e.dataTransfer.effectAllowed = 'move';
+      });
+      entry.addEventListener('dragend', function(e) {
+        this.style.opacity = '1';
+      });
+      entry.addEventListener('dragover', function(e) {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        const target = this;
+        if (target !== draggedItem) {
+          const rect = target.getBoundingClientRect();
+          const next = (e.clientY > rect.top + rect.height / 2);
+          const parent = target.parentNode;
+          if (next) {
+            parent.insertBefore(draggedItem, target.nextSibling);
+          } else {
+            parent.insertBefore(draggedItem, target);
+          }
+        }
+      });
+    });
+
+    // Сохранение порядка после перетаскивания (по окончании drag)
+    document.addEventListener('dragend', async function() {
+      if (draggedItem) {
+        const entriesList = document.getElementById('entriesList');
+        const cardIds = Array.from(entriesList.querySelectorAll('.entry-card')).map(el => el.dataset.id);
+        const worldId = document.getElementById('lorebookSelect').value;
+        if (worldId && cardIds.length) {
+          await reorderLoreEntries(worldId, cardIds);
+          window.markDirty('lorebooks');
+        }
+        draggedItem = null;
+      }
+    });
 
   } catch (e) {
     body.innerHTML = `<p class="error-message">Ошибка загрузки лорбуков</p>`;
     console.error(e);
   }
 }
-

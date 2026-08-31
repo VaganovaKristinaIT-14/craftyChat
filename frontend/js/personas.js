@@ -2,8 +2,6 @@
 // PERSONAS — управление персонами (User)
 // ============================================================
 
-
-
 let currentPersonaPage = 1;
 let selectedPersonaId = null;
 const PERSONA_PER_PAGE = 10;
@@ -26,8 +24,8 @@ async function renderPersonasPanel() {
       <div style="display:flex; gap:20px; height:100%;">
         <div style="flex:0 0 260px; display:flex; flex-direction:column; gap:8px;">
           <div style="display:flex; gap:6px; flex-wrap:wrap;">
-            <button class="btn btn-sm" id="createPersonaBtn">➕ Создать</button>
-            <button class="btn btn-sm" id="importPersonaBtn">⬆️ Импорт</button>
+            <button class="preset-tool-btn" id="createPersonaBtn" title="Создать персону">${window.iconImg('add', 'Создать', 18, 18)}</button>
+            <button class="preset-tool-btn" id="importPersonaBtn" title="Импортировать персону">${window.iconImg('import', 'Импорт', 18, 18)}</button>
           </div>
           <div class="card-list" id="personaList">
             ${personas.length === 0 ? '<p style="color:#666;">Нет персон</p>' :
@@ -35,7 +33,7 @@ async function renderPersonasPanel() {
                 <div class="card-item ${p.id === selectedPersonaId ? 'active' : ''}" data-id="${p.id}">
                   <div class="card-avatar">${p.avatar ? `<img src="${p.avatar}">` : '👤'}</div>
                   <div class="card-info">
-                    <div class="name">${escHtml(p.name)} ${p.id === activeId ? '⭐' : ''}</div>
+                    <div class="name">${escHtml(p.name)} ${p.id === activeId ? `<span class="active-icon">${window.iconImg('ok', 'Активна', 16, 16)}</span>` : ''}</div>
                     <div class="sub">${escHtml(p.description.substring(0, 30))}</div>
                   </div>
                 </div>
@@ -47,7 +45,7 @@ async function renderPersonasPanel() {
             <button class="btn btn-sm btn-outline" id="nextPersonaPage" ${currentPersonaPage >= totalPages ? 'disabled' : ''}>▶</button>
           </div>
         </div>
-        <div style="flex:1; background:#2a2a34; border-radius:12px; padding:16px;" id="personaDetailContainer">
+        <div style="flex:1; padding:16px;" id="personaDetailContainer">
           ${selectedPersonaId ? await renderPersonaDetail(selectedPersonaId) : '<p style="color:#666; text-align:center; margin-top:40px;">Выберите персону</p>'}
         </div>
       </div>
@@ -56,15 +54,17 @@ async function renderPersonasPanel() {
 
     // Выбор персоны
     document.querySelectorAll('#personaList .card-item').forEach(el => {
-      el.addEventListener('click', function() {
-        selectedPersonaId = this.dataset.id;
-        renderPersonasPanel();
-      });
-    });
+  el.addEventListener('click', async function() {
+    const id = this.dataset.id;
+    selectedPersonaId = id;
+    await activatePersona(id);
+    renderPersonasPanel();
+  });
+});
 
     // Создать
     document.getElementById('createPersonaBtn')?.addEventListener('click', async function() {
-      const newP = await createPersona({ name: 'Новая персона', description: '' });
+      const newP = await createPersona({ name: 'New persona', description: '' });
       window.markDirty('personas');
       selectedPersonaId = newP.id;
       await activatePersona(newP.id);
@@ -124,10 +124,9 @@ async function renderPersonaDetail(personaId) {
       <div style="display:flex; justify-content:space-between; align-items:center;">
         <h3 style="font-size:18px;">${escHtml(persona.name)}</h3>
         <div style="display:flex; gap:6px;">
-          <button class="btn btn-sm" id="renamePersonaBtn">✎</button>
-          <button class="btn btn-sm" id="exportPersonaBtn">⬇️</button>
-          <button class="btn btn-sm btn-danger" id="deletePersonaBtn">🗑️</button>
-          <button class="btn btn-sm" id="activatePersonaBtn">⭐ Активна</button>
+          <button class="preset-tool-btn" id="renamePersonaBtn" title="Переименовать">${window.iconImg('rename', 'Переименовать', 18, 18)}</button>
+          <button class="preset-tool-btn" id="exportPersonaBtn" title="Экспортировать">${window.iconImg('export', 'Экспорт', 18, 18)}</button>
+          <button class="preset-tool-btn btn-danger" id="deletePersonaBtn" title="Удалить">${window.iconImg('delete', 'Удалить', 18, 18)}</button>
         </div>
       </div>
       <div style="display:flex; gap:12px; margin:8px 0;">
@@ -143,25 +142,25 @@ async function renderPersonaDetail(personaId) {
       <div style="border-top:1px solid #333; padding-top:12px;">
         <div style="display:flex; justify-content:space-between; align-items:center;">
           <h4 style="font-size:15px;">Связи с персонажами</h4>
-          <button class="btn btn-sm" id="linkCharBtn">➕ Привязать</button>
+          <button class="gold-outline-btn" id="linkCharBtn">${window.iconImg('add', 'Привязать', 18, 18)} Привязать</button>
         </div>
         <div id="linkedChars" style="display:flex; flex-wrap:wrap; gap:8px; margin-top:8px;">
-  ${persona.linked_characters && persona.linked_characters.length > 0 ?
-    persona.linked_characters.map(charId => {
-      const ch = allChars.find(c => c.id === charId);
-      return ch ? `
-        <div style="display:flex; align-items:center; gap:6px; background:var(--ink-3); padding:4px 10px 4px 4px; border-radius:20px; border:1px solid var(--line);">
-          <div style="width:28px;height:28px;border-radius:50%;overflow:hidden;background:var(--ink-4);display:flex;align-items:center;justify-content:center;font-size:14px;">
-            ${ch.avatar ? `<img src="${ch.avatar}" style="width:100%;height:100%;object-fit:cover;">` : '🤖'}
-          </div>
-          <span style="font-size:13px;font-weight:500;">${escHtml(ch.name)}</span>
-          <button class="unlink-btn" data-char-id="${charId}" style="background:none;border:none;color:var(--wine);cursor:pointer;font-size:14px;padding:0 4px;">✕</button>
+          ${persona.linked_characters && persona.linked_characters.length > 0 ?
+            persona.linked_characters.map(charId => {
+              const ch = allChars.find(c => c.id === charId);
+              return ch ? `
+                <div style="display:flex; align-items:center; gap:6px; background:var(--ink-3); padding:4px 10px 4px 4px; border-radius:20px; border:1px solid var(--line);">
+                  <div style="width:28px;height:28px;border-radius:50%;overflow:hidden;background:var(--ink-4);display:flex;align-items:center;justify-content:center;font-size:14px;">
+                    ${ch.avatar ? `<img src="${ch.avatar}" style="width:100%;height:100%;object-fit:cover;">` : '🤖'}
+                  </div>
+                  <span style="font-size:13px;font-weight:500;">${escHtml(ch.name)}</span>
+                  <button class="preset-tool-btn unlink-btn" data-char-id="${charId}" title="Отвязать">${window.iconImg('close', 'Отвязать', 14, 14)}</button>
+                </div>
+              ` : ''
+            }).join('') :
+            '<span style="color:var(--paper-faint);font-style:italic;">Нет привязанных персонажей</span>'
+          }
         </div>
-      ` : ''
-    }).join('') :
-    '<span style="color:var(--paper-faint);font-style:italic;">Нет привязанных персонажей</span>'
-  }
-</div>
       </div>
     `;
   } catch (e) {
@@ -173,6 +172,7 @@ function attachPersonaDetailHandlers() {
   const container = document.getElementById('personaDetailContainer');
   if (!container) return;
 
+  // Переименовать – без тоста
   document.getElementById('renamePersonaBtn')?.addEventListener('click', async function() {
     if (!selectedPersonaId) return;
     const persona = await getPersona(selectedPersonaId);
@@ -182,10 +182,11 @@ function attachPersonaDetailHandlers() {
       await updatePersona(selectedPersonaId, { name: newName });
       window.markDirty('personas');
       renderPersonasPanel();
-      showToast('Переименовано', 'success');
+      // убрали тост
     }
   });
 
+  // Экспорт
   document.getElementById('exportPersonaBtn')?.addEventListener('click', async function() {
     if (!selectedPersonaId) return;
     const data = await exportPersona(selectedPersonaId);
@@ -197,6 +198,7 @@ function attachPersonaDetailHandlers() {
     showToast('Экспортировано', 'success');
   });
 
+  // Удалить
   document.getElementById('deletePersonaBtn')?.addEventListener('click', async function() {
     if (!selectedPersonaId) return;
     const persona = await getPersona(selectedPersonaId);
@@ -209,13 +211,7 @@ function attachPersonaDetailHandlers() {
     showToast('Персона удалена', 'success');
   });
 
-  document.getElementById('activatePersonaBtn')?.addEventListener('click', async function() {
-    if (!selectedPersonaId) return;
-    await activatePersona(selectedPersonaId);
-    renderPersonasPanel();
-    showToast('Персона активна', 'success');
-  });
-
+  // Клик по аватарке
   document.getElementById('personaAvatar')?.addEventListener('click', async function(e) {
     if (e.target.closest('#personaAvatarUpload')) return;
     if (!selectedPersonaId) return;
@@ -223,6 +219,7 @@ function attachPersonaDetailHandlers() {
     if (persona?.avatar) openLightbox(persona.avatar);
   });
 
+  // Загрузка аватарки
   document.getElementById('personaAvatarUpload')?.addEventListener('click', function(e) {
     e.stopPropagation();
     if (!selectedPersonaId) return;
@@ -249,6 +246,7 @@ function attachPersonaDetailHandlers() {
     input.click();
   });
 
+  // Описание – автосохранение
   document.getElementById('personaDesc')?.addEventListener('input', debounce(async function() {
     if (!selectedPersonaId) return;
     const val = this.value;
@@ -256,70 +254,65 @@ function attachPersonaDetailHandlers() {
     window.markDirty('personas');
   }, 500));
 
+  // Привязать персонажа
   document.getElementById('linkCharBtn')?.addEventListener('click', async function() {
-  if (!selectedPersonaId) return;
+    if (!selectedPersonaId) return;
 
-  // Получаем всех персонажей
-  const charsData = await getCharacters(1, 1000);
-  const allChars = charsData.items || [];
-  if (allChars.length === 0) {
-    showToast('Нет доступных персонажей. Создайте хотя бы одного.', 'warning');
-    return;
-  }
+    const charsData = await getCharacters(1, 1000);
+    const allChars = charsData.items || [];
+    if (allChars.length === 0) {
+      showToast('Нет доступных персонажей. Создайте хотя бы одного.', 'warning');
+      return;
+    }
 
-  // Строим список для выбора
-  const listHtml = allChars.map(ch => `
-    <div class="char-select-item" data-char-id="${ch.id}" style="display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:8px;cursor:pointer;transition:background 0.15s;">
-      <div style="width:36px;height:36px;border-radius:50%;overflow:hidden;background:var(--ink-4);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">
-        ${ch.avatar ? `<img src="${ch.avatar}" style="width:100%;height:100%;object-fit:cover;">` : '🤖'}
+    const listHtml = allChars.map(ch => `
+      <div class="char-select-item" data-char-id="${ch.id}" style="display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:8px;cursor:pointer;transition:background 0.15s;">
+        <div style="width:36px;height:36px;border-radius:50%;overflow:hidden;background:var(--ink-4);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">
+          ${ch.avatar ? `<img src="${ch.avatar}" style="width:100%;height:100%;object-fit:cover;">` : '🤖'}
+        </div>
+        <span style="font-weight:500;">${escHtml(ch.name)}</span>
       </div>
-      <span style="font-weight:500;">${escHtml(ch.name)}</span>
-    </div>
-  `).join('');
+    `).join('');
 
-  // Показываем кастомную модалку (используем showPrompt с multiline, но нам нужен не ввод, а клик по элементу)
-  // Поэтому создадим свою модалку на лету.
-  const overlay = document.createElement('div');
-  overlay.className = 'app-modal-overlay';
-  overlay.style.display = 'flex';
-  overlay.innerHTML = `
-    <div class="app-modal" style="max-width:500px;width:90%;max-height:80vh;display:flex;flex-direction:column;">
-      <div class="app-modal-title">Выберите персонажа для привязки</div>
-      <div style="flex:1;overflow-y:auto;margin:12px 0;display:flex;flex-direction:column;gap:4px;">
-        ${listHtml}
+    const overlay = document.createElement('div');
+    overlay.className = 'app-modal-overlay';
+    overlay.style.display = 'flex';
+    overlay.innerHTML = `
+      <div class="app-modal" style="max-width:500px;width:90%;max-height:80vh;display:flex;flex-direction:column;">
+        <div class="app-modal-title">Выберите персонажа для привязки</div>
+        <div style="flex:1;overflow-y:auto;margin:12px 0;display:flex;flex-direction:column;gap:4px;">
+          ${listHtml}
+        </div>
+        <div class="app-modal-actions">
+          <button class="app-modal-btn app-modal-btn-cancel" id="modalCancelBtn">Отмена</button>
+        </div>
       </div>
-      <div class="app-modal-actions">
-        <button class="app-modal-btn app-modal-btn-cancel" id="modalCancelBtn">Отмена</button>
-      </div>
-    </div>
-  `;
-  document.body.appendChild(overlay);
-  requestAnimationFrame(() => overlay.classList.add('visible'));
+    `;
+    document.body.appendChild(overlay);
+    requestAnimationFrame(() => overlay.classList.add('visible'));
 
-  // Обработчик клика по элементу списка
-  overlay.querySelectorAll('.char-select-item').forEach(el => {
-    el.addEventListener('click', async function() {
-      const charId = this.dataset.charId;
-      try {
-        await linkPersonaToCharacter(selectedPersonaId, charId);
-        window.markDirty('personas');
-        overlay.remove();
-        renderPersonasPanel();
-        showToast('Персонаж привязан', 'success');
-      } catch (e) {
-        showToast('Ошибка привязки', 'error');
-      }
+    overlay.querySelectorAll('.char-select-item').forEach(el => {
+      el.addEventListener('click', async function() {
+        const charId = this.dataset.charId;
+        try {
+          await linkPersonaToCharacter(selectedPersonaId, charId);
+          window.markDirty('personas');
+          overlay.remove();
+          renderPersonasPanel();
+          showToast('Персонаж привязан', 'success');
+        } catch (e) {
+          showToast('Ошибка привязки', 'error');
+        }
+      });
+      el.addEventListener('mouseenter', function() { this.style.background = 'var(--ink-4)'; });
+      el.addEventListener('mouseleave', function() { this.style.background = 'transparent'; });
     });
-    // Эффект при наведении
-    el.addEventListener('mouseenter', function() { this.style.background = 'var(--ink-4)'; });
-    el.addEventListener('mouseleave', function() { this.style.background = 'transparent'; });
+
+    overlay.querySelector('#modalCancelBtn').addEventListener('click', () => overlay.remove());
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
   });
 
-  // Закрытие по кнопке "Отмена"
-  overlay.querySelector('#modalCancelBtn').addEventListener('click', () => overlay.remove());
-  overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
-});
-
+  // Отвязать персонажа
   document.querySelectorAll('.unlink-btn').forEach(btn => {
     btn.addEventListener('click', async function(e) {
       e.stopPropagation();
@@ -334,4 +327,3 @@ function attachPersonaDetailHandlers() {
     });
   });
 }
-

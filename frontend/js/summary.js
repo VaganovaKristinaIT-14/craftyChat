@@ -2,12 +2,15 @@
 // SUMMARY — полное управление саммари (улучшенный интерфейс)
 // ============================================================
 
+// Множество для хранения id раскрытых блоков
+let expandedSummaryBlocks = new Set();
+
 async function renderSummaryPanel() {
   const body = document.getElementById('central-panel-body');
   if (!body) return;
 
   if (!window.currentChatId) {
-    body.innerHTML = `<div class="summary-placeholder">📝 Зайдите в чат, чтобы управлять саммари</div>`;
+    body.innerHTML = `<div class="summary-placeholder" style="text-align:center; color:var(--paper-faint); font-size:18px; padding:40px 0;">Зайдите в чат, чтобы управлять саммари</div>`;
     return;
   }
 
@@ -18,7 +21,7 @@ async function renderSummaryPanel() {
 
     let html = `
       <div class="summary-status">
-        <div class="status-icon">${status.is_actual ? '✅' : '❌'}</div>
+        <div class="status-icon">${status.is_actual ? '' : ''}</div>
         <div class="status-text">
           <span class="status-label" style="color:${status.is_actual ? '#4caf50' : '#e74c6f'}">${status.label}</span>
           <span class="status-detail">(${status.unsummarized_count} сообщений не охвачено)</span>
@@ -28,35 +31,37 @@ async function renderSummaryPanel() {
         </div>
       </div>
       <div class="summary-prompt-section">
-        <label>📝 Промпт для генерации саммари</label>
+       <label class="summary-label">Промпт для генерации саммари</label>
         <textarea id="summaryPrompt" rows="3" class="summary-prompt-text">${escHtml('Ниже приведены известные данные (карточки и лорбук). Ты НЕ должен включать их в саммари — они уже известны. Перескажи только новые события из сообщений ниже.')}</textarea>
-        <button class="btn btn-sm" id="generateSummaryBtn">⚡ Сгенерировать и скопировать промпт</button>
+        <button class="gold-outline-btn" id="generateSummaryBtn">Сгенерировать промпт</button>
         <span style="font-size:12px; color:var(--paper-faint); margin-left:8px;">(после получения ответа вставьте его в поле ниже)</span>
       </div>
       <div class="summary-blocks-section">
         <div class="blocks-header">
-          <h4>📖 Блоки саммари (краткое содержание истории)</h4>
-          <button class="btn btn-sm" id="addEmptySummaryBtn">➕ Добавить пустой блок</button>
+          <h4 style="margin:0; font-size:20px; font-weight:500;">Блоки саммари (краткое содержание истории)</h4>
+          <button class="gold-outline-btn" id="addEmptySummaryBtn">${window.iconImg('add', 'Добавить', 18, 18)} Добавить пустой блок</button>
         </div>
-        <div class="blocks-list">
+        <div class="blocks-list" style="max-height: 50vh; overflow-y: auto;">
           ${blocks.length === 0 ? '<p class="empty-message">Нет блоков саммари</p>' :
-            blocks.map((b, idx) => `
+            blocks.map((b, idx) => {
+              const isExpanded = expandedSummaryBlocks.has(b.id);
+              return `
               <div class="summary-block" data-id="${b.id}">
                 <div class="block-header">
-                  <span class="block-name">${escHtml(b.name || `Блок ${idx+1}`)}</span>
-                  <span class="block-range">📌 Индексы сообщений: #${b.start_index ?? '?'} — #${b.end_index ?? '?'}</span>
+                  <span class="block-name" style="cursor:pointer;">${escHtml(b.name || `Блок ${idx+1}`)}</span>
+                  <span class="block-range" style="font-family:var(--font-mono); font-size:12px; color:var(--paper-faint);">Индексы сообщений: #${b.start_index ?? '?'} — #${b.end_index ?? '?'}</span>
                   <div class="block-controls">
-                    <button class="btn btn-sm btn-outline rename-summary-btn" data-id="${b.id}" title="Переименовать блок">✎</button>
-                    <button class="btn btn-sm btn-danger delete-summary-btn" data-id="${b.id}" title="Удалить блок">✕</button>
+                    <button class="preset-tool-btn rename-summary-btn" data-id="${b.id}" title="Переименовать блок">${window.iconImg('rename', 'Переименовать', 14, 14)}</button>
+                    <button class="preset-tool-btn delete-summary-btn" data-id="${b.id}" title="Удалить блок">${window.iconImg('delete', 'Удалить', 14, 14)}</button>
                   </div>
                 </div>
-                <div class="block-content">
+                <div class="block-content" style="display:${isExpanded ? 'block' : 'none'};">
                   <div class="summary-text-display">${escHtml(b.summary)}</div>
                   <textarea class="summary-edit" style="display:none;" rows="3">${escHtml(b.summary)}</textarea>
                   <button class="btn btn-sm btn-outline edit-summary-btn" data-id="${b.id}">✎ Редактировать текст</button>
                 </div>
               </div>
-            `).join('')}
+            `}).join('')}
         </div>
       </div>
     `;
@@ -106,7 +111,7 @@ async function renderSummaryPanel() {
       });
     });
 
-    // Переименование блока
+    // Переименование блока – без тоста
     document.querySelectorAll('.rename-summary-btn').forEach(btn => {
       btn.addEventListener('click', async function(e) {
         e.stopPropagation();
@@ -117,12 +122,28 @@ async function renderSummaryPanel() {
         if (newName) {
           await updateSummaryBlock(window.currentChatId, id, { name: newName });
           renderSummaryPanel();
-          showToast('Название обновлено', 'success');
+          // Убрано showToast
         }
       });
     });
 
-    // Редактирование содержимого блока
+    // Раскрытие/сворачивание блока по клику на название
+    document.querySelectorAll('.block-name').forEach(el => {
+      el.addEventListener('click', function(e) {
+        const blockDiv = this.closest('.summary-block');
+        const id = blockDiv.dataset.id;
+        const content = blockDiv.querySelector('.block-content');
+        if (expandedSummaryBlocks.has(id)) {
+          expandedSummaryBlocks.delete(id);
+          content.style.display = 'none';
+        } else {
+          expandedSummaryBlocks.add(id);
+          content.style.display = 'block';
+        }
+      });
+    });
+
+    // Редактирование содержимого блока – без тоста при сохранении
     document.querySelectorAll('.edit-summary-btn').forEach(btn => {
       btn.addEventListener('click', function(e) {
         e.stopPropagation();
@@ -132,22 +153,22 @@ async function renderSummaryPanel() {
         if (editArea.style.display === 'none') {
           display.style.display = 'none';
           editArea.style.display = 'block';
-          this.textContent = '💾 Сохранить изменения';
+          this.textContent = 'Сохранить изменения';
         } else {
           const newText = editArea.value;
           const id = this.dataset.id;
           updateSummaryBlock(window.currentChatId, id, { summary: newText }).then(() => {
             renderSummaryPanel();
-            showToast('Изменения сохранены', 'success');
+            // Убрано showToast
           });
         }
       });
     });
+
+    // Автоматически сворачиваем новые блоки (при добавлении они уже свернуты, т.к. expandedSummaryBlocks не содержит их id)
 
   } catch (e) {
     body.innerHTML = `<p class="error-message">Ошибка загрузки саммари</p>`;
     console.error(e);
   }
 }
-
-
