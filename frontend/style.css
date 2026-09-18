@@ -112,7 +112,19 @@ body {
   color: var(--paper);
   letter-spacing: 0.2px;
 }
-.logo-mark { display: none; }
+.logo-mark {
+  display: inline-block;
+  width: 50px;
+  height: 50px;
+  vertical-align: middle;
+  margin-right: 8px;
+  filter: brightness(0) saturate(100%) invert(1) brightness(1);
+}
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
 .logo-text em { display: none; }
 
 /* ===== TOP BAR NAV ===== */
@@ -976,29 +988,50 @@ label {
 }
 
 /* ===== Выпадающее меню чата (открывается вверх) ===== */
+/* ===== Выпадающее меню чата (увеличенный размер, белые иконки) ===== */
 .chat-menu-dropdown {
   position: absolute;
-  bottom: calc(100% + 8px);   /* над строкой ввода */
-  left: 20px;
+  bottom: calc(100% + 10px);   /* над строкой ввода */
+  left: 16px;
   background: var(--ink-2);
-  border: 1px solid var(--line);
+  border: 1px solid var(--line-soft);
   border-radius: var(--radius-md);
-  padding: 6px 0;
-  min-width: 200px;
-  box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+  padding: 8px 0;
+  min-width: 250px;           /* Увеличена ширина меню */
+  box-shadow: 0 12px 32px rgba(0,0,0,0.65);
   z-index: 200;
-  max-height: 70vh;
+  max-height: 75vh;
   overflow-y: auto;
 }
 
 .chat-menu-item {
-  padding: 8px 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;                  /* Отступ между иконкой и текстом */
+  padding: 10px 18px;         /* Увеличен размер кликабельной области кнопки */
   cursor: pointer;
-  transition: background 0.1s;
-  font-size: 14px;
+  transition: background 0.15s ease, color 0.15s ease;
+  font-size: 16px;            /* Увеличен размер шрифта */
+  color: var(--paper-dim);
+  user-select: none;
 }
+
 .chat-menu-item:hover {
   background: var(--ink-3);
+  color: var(--paper);
+}
+
+/* Все иконки меню делаем чисто белыми */
+.chat-menu-item img {
+  filter: brightness(0) saturate(100%) invert(1) brightness(1) !important;
+  display: block;
+}
+
+/* Разделитель */
+.chat-menu-divider {
+  height: 1px;
+  background: var(--line-soft);
+  margin: 6px 12px;
 }
 
 /* ===== ADAPTIVE ===== */
@@ -1034,62 +1067,60 @@ label {
 
 
 /* ============================================================
-   УВЕДОМЛЕНИЯ (TOAST) — улучшенные
+   УВЕДОМЛЕНИЯ (TOAST)
    ============================================================ */
 
 .toast-container {
-  position: fixed;
-  top: 24px;
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 9999;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  align-items: center;
-  pointer-events: none;
-  width: 100%;
-  max-width: 480px;
+  position: absolute !important;
+  top: 76px !important;            /* Ровно под верхней панелью #top-bar */
+  left: 0 !important;
+  right: 0 !important;
+  margin-left: auto !important;
+  margin-right: auto !important;
+  width: 90% !important;
+  max-width: 440px !important;
+  z-index: 99999 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 10px !important;
+  align-items: center !important;
+  pointer-events: none !important;
+  transform: none !important;      /* Убираем translateX, ломавший геометрию */
+  padding: 0 !important;
+  box-sizing: border-box !important;
 }
 
 .toast {
   pointer-events: auto;
   background: var(--ink-2);
   border: 1px solid var(--line-soft);
-  border-radius: 16px;
-  padding: 14px 20px;
-  min-width: 280px;
-  max-width: 100%;
-  box-shadow: 0 16px 48px rgba(0,0,0,0.65), 0 0 0 1px var(--line-soft);
+  border-radius: 14px;
+  padding: 12px 18px;
+  width: 100%;
+  box-shadow: 0 16px 40px rgba(0,0,0,0.65);
   display: flex;
   align-items: center;
-  gap: 14px;
-  transform: translateY(-20px) scale(0.95);
-  opacity: 0;
-  animation: toastIn 0.4s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  justify-content: space-between;
+  gap: 12px;
   position: relative;
   overflow: hidden;
+  box-sizing: border-box;
+  animation: toastFadeIn 0.2s ease-out forwards;
 }
 
 .toast.hidden {
-  animation: toastOut 0.35s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  animation: toastFadeOut 0.2s ease-in forwards;
 }
 
-@keyframes toastIn {
-  0% { transform: translateY(-20px) scale(0.95); opacity: 0; }
-  100% { transform: translateY(0) scale(1); opacity: 1; }
+/* Анимация только по прозрачности, без transform, чтобы не сдвигать координаты */
+@keyframes toastFadeIn {
+  0% { opacity: 0; }
+  100% { opacity: 1; }
 }
 
-@keyframes toastOut {
-  0% { transform: translateY(0) scale(1); opacity: 1; }
-  100% { transform: translateY(-20px) scale(0.95); opacity: 0; }
-}
-
-.toast-icon {
-  font-size: 22px;
-  flex-shrink: 0;
-  width: 32px;
-  text-align: center;
+@keyframes toastFadeOut {
+  0% { opacity: 1; }
+  100% { opacity: 0; }
 }
 
 .toast-content {
@@ -1108,7 +1139,7 @@ label {
 }
 
 .toast-message {
-  font-size: 13px;
+  font-size: 13.5px;
   color: var(--paper-dim);
   line-height: 1.4;
   word-wrap: break-word;
@@ -1136,7 +1167,7 @@ label {
   bottom: 0;
   left: 0;
   height: 3px;
-  border-radius: 0 0 0 16px;
+  border-radius: 0 0 0 14px;
   animation: toastProgress linear forwards;
 }
 
@@ -1145,29 +1176,21 @@ label {
   100% { width: 0%; }
 }
 
-/* ----- Типы уведомлений ----- */
-.toast-success {
-  border-left: 4px solid #4caf50;
-}
-.toast-success .toast-icon { color: #4caf50; }
+/* Цвета полосок */
+.toast-success { border-left: 4px solid #4caf50; }
+.toast-success .toast-title { color: #4caf50; }
 .toast-success .toast-progress { background: #4caf50; }
 
-.toast-error {
-  border-left: 4px solid #e74c6f;
-}
-.toast-error .toast-icon { color: #e74c6f; }
+.toast-error { border-left: 4px solid #e74c6f; }
+.toast-error .toast-title { color: #e74c6f; }
 .toast-error .toast-progress { background: #e74c6f; }
 
-.toast-warning {
-  border-left: 4px solid #f39c12;
-}
-.toast-warning .toast-icon { color: #f39c12; }
+.toast-warning { border-left: 4px solid #f39c12; }
+.toast-warning .toast-title { color: #f39c12; }
 .toast-warning .toast-progress { background: #f39c12; }
 
-.toast-info {
-  border-left: 4px solid #4a6cf7;
-}
-.toast-info .toast-icon { color: #4a6cf7; }
+.toast-info { border-left: 4px solid #4a6cf7; }
+.toast-info .toast-title { color: #4a6cf7; }
 .toast-info .toast-progress { background: #4a6cf7; }
 
 
@@ -2009,31 +2032,114 @@ input:checked + .slider::before {
   letter-spacing: normal;
 }
 
-/* ===== Кнопки внутри блоков пресетов (только иконки, без рамок) ===== */
-.preset-item .edit-preset,
-.preset-item .delete-preset {
-  background: transparent;
-  border: none;
-  padding: 2px 4px;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 4px;
-  transition: 0.15s;
-}
-.preset-item .edit-preset:hover,
-.preset-item .delete-preset:hover {
-  background: var(--ink-4);
-}
-.preset-item .edit-preset img,
-.preset-item .delete-preset img {
-  filter: brightness(0) saturate(100%) invert(1) brightness(1); /* белый цвет */
+/* ===== БЛОКИ ПРЕСЕТОВ (увеличенные размеры карточек, шрифт и кнопки) ===== */
+
+/* ===== БЛОКИ ПРЕСЕТОВ (увеличенные размеры карточек, шрифт и кнопки) ===== */
+
+.preset-item {
+  background: var(--ink-2) !important;
+  border: 1px solid var(--line-soft) !important;
+  border-radius: var(--radius-md) !important;
+  padding: 12px 16px !important;
+  margin-top: 10px !important;
+  transition: 0.18s ease;
+  display: flex !important;
+  flex-direction: column !important;
 }
 
-.preset-tool-btn:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
+.preset-item:hover {
+  background: var(--ink-3) !important;
+  border-color: var(--line) !important;
+}
+
+/* Шапка пресета: расталкивает имя влево, а тумблер и кнопки — строго вправо */
+.preset-item-header {
+  display: flex !important;
+  justify-content: space-between !important; /* Название слева, кнопки строго справа */
+  align-items: center !important;            /* Идеальное выравнивание по вертикальному центру */
+  width: 100% !important;
+  gap: 12px !important;
+}
+
+/* Название пресета (слева) */
+.preset-item .preset-toggle {
+  color: var(--paper) !important;
+  font-weight: 600 !important;
+  font-size: 16.5px !important;
+  cursor: pointer;
+  user-select: none;
+  line-height: 1.3;
+  flex: 1 !important;                       /* Занимает всю свободную ширину слева */
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+
+.preset-item .preset-toggle:hover {
+  color: var(--amber) !important;
+}
+
+/* Правый блок: ползунок + карандаш + корзина в один ряд */
+.preset-item-controls {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;           /* Все элементы на одной линии */
+  gap: 8px !important;
+  flex-shrink: 0 !important;               /* Блок не сжимается */
+}
+
+/* Переключатель-свитч в правом блоке */
+.preset-item-controls .switch {
+  margin: 0 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+}
+
+/* Кнопки карандаша и удаления (строго в ряд) */
+.preset-item .edit-preset,
+.preset-item .delete-preset {
+  background: transparent !important;
+  border: none !important;
+  padding: 6px !important;
+  cursor: pointer;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  border-radius: var(--radius-sm);
+  transition: 0.15s;
+  line-height: 1 !important;
+}
+
+.preset-item .edit-preset:hover,
+.preset-item .delete-preset:hover {
+  background: var(--ink-4) !important;
+}
+
+.preset-item .edit-preset img,
+.preset-item .delete-preset img {
+  filter: brightness(0) saturate(100%) invert(1) brightness(1) !important; /* чисто белый цвет */
+  width: 18px !important;
+  height: 18px !important;
+  display: block !important;
+}
+
+/* Контейнер раскрытия пресета */
+.preset-item .preset-content {
+  margin-top: 12px !important;
+  padding-top: 10px !important;
+  border-top: 1px solid var(--line-soft) !important;
+  width: 100% !important;
+}
+
+/* Текстовое поле раскрытия пресета — ровно на 10 строк */
+.preset-item .preset-content textarea {
+  font-size: 15px !important;
+  line-height: 1.5 !important;
+  min-height: calc(1.5em * 10 + 20px) !important; /* 10 строк текста */
+  height: calc(1.5em * 10 + 20px) !important;
+  resize: vertical !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
 }
 
 /* ===== Кастомный переключатель (кружок) ===== */
@@ -2177,3 +2283,39 @@ input[type="range"]::-moz-range-thumb:hover {
   display: flex; align-items: center; gap: 10px; color: var(--paper-dim); font-size: 13px;
 }
 .cropper-zoom-row input { flex: 1; }
+
+
+
+/* ===== КНОПКИ ЦЕНЗУРЫ В ПРЕСЕТАХ ===== */
+.censor-btn {
+  width: 100%;
+  background: var(--ink-3);
+  color: var(--paper-dim);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  padding: 8px 14px;
+  font-family: var(--font-body);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.18s ease, color 0.18s ease, border-color 0.18s ease;
+  text-align: center;
+  display: block;
+}
+
+.censor-btn:hover {
+  background: var(--ink-4);
+  color: var(--paper);
+  border-color: var(--line-soft);
+}
+
+.censor-btn.active {
+  background: var(--amber);
+  color: var(--amber-ink);
+  border-color: var(--amber);
+  font-weight: 700;
+}
+
+.censor-btn.active:hover {
+  filter: brightness(1.05);
+}

@@ -1,6 +1,5 @@
 # ============================================
 # ROUTES — /api/settings — глобальные настройки
-# (лимит токенов 5К-100К, лимит символов векторных записей и т.д.)
 # ============================================
 from flask import Blueprint, request, jsonify
 from utils import repo
@@ -22,10 +21,18 @@ def update_settings():
     settings = repo.get_settings()
     for field in (
         "token_limit", "vector_entries_char_limit", "context_messages_count",
-        "summary_step_size","summary_prompt",
+        "summary_step_size", "summary_prompt",
     ):
         if field in body:
             settings[field] = body[field]
+
+    if "censor_mode" in body:
+        val = body["censor_mode"]
+        if val in ("off", "messages", "full"):
+            settings["censor_mode"] = val
+        else:
+            return jsonify({"error": "censor_mode должен быть 'off', 'messages' или 'full'"}), 400
+
     repo.save_settings(settings)
     return jsonify(settings)
 

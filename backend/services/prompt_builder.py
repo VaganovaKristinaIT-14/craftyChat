@@ -1,9 +1,9 @@
 # ============================================
-# PROMPT BUILDER — сборка мейн промпта:
-# [Role] -> [System] -> [Character] -> [User] -> [Lore] -> [Summary] -> [Context] -> [Instruction] -> сообщение
+# PROMPT BUILDER — сборка мейн промпта
 # ============================================
 from utils import repo
 from utils.tokens import count_tokens
+from services.censor_service import censor_text
 
 CHARACTER_FIELD_LABELS = {
     "personality": "Характер",
@@ -168,8 +168,11 @@ def _assemble(parts):
     return "\n\n".join(p for p in parts if p)
 
 
-def build_main_prompt(chat_id, user_message):
+def build_main_prompt(chat_id, user_message, censor_mode=None):
     settings = repo.get_settings()
+    if censor_mode is None:
+        censor_mode = settings.get("censor_mode", "off")
+
     chat = repo.get_chat(chat_id)
     if not chat:
         raise ValueError(f"Чат {chat_id} не найден")
@@ -188,7 +191,7 @@ def build_main_prompt(chat_id, user_message):
 
     # Формируем блоки
     role_block = build_role_block(collection)
-    system_block = build_presets_block(collection) # Бывший Presets
+    system_block = build_presets_block(collection)
     character_block = build_character_block(character)
     user_block = build_user_block(persona)
     lore_block, _ = select_lore_entries(lorebook, chat.get("messages", []), user_message, vector_char_limit)
@@ -196,6 +199,20 @@ def build_main_prompt(chat_id, user_message):
     context_block = build_context_block(chat, context_count)
     instruction_block = build_final_instruction_block()
     current_message_block = (user_message or "").strip()
+
+    # Применяем цензуру согласно режиму
+    if censor_mode == "messages":
+        context_block = censor_text(context_block)
+        current_message_block = censor_text(current_message_block)
+    elif censor_mode == "full":
+        role_block = censor_text(role_block)
+        system_block = censor_text(system_block)
+        character_block = censor_text(character_block)
+        user_block = censor_text(user_block)
+        lore_block = censor_text(lore_block)
+        summary_block = censor_text(summary_block)
+        context_block = censor_text(context_block)
+        current_message_block = censor_text(current_message_block)
 
     def assemble_full(s_block):
         return _assemble([
@@ -228,6 +245,8 @@ def build_main_prompt(chat_id, user_message):
             )
             if body:
                 current_s_content = f"[Summary]\n{{{{ {body} }}}}"
+                if censor_mode == "full":
+                    current_s_content = censor_text(current_s_content)
 
         full_prompt = assemble_full(current_s_content)
         tokens_now = count_tokens(full_prompt)
@@ -235,7 +254,6 @@ def build_main_prompt(chat_id, user_message):
         if tokens_now <= token_limit or not remaining_summary_blocks:
             break
 
-        # удаляем самый старый блок саммари
         remaining_summary_blocks.pop(0)
 
     tokens_after = count_tokens(full_prompt)

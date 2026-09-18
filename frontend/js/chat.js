@@ -408,30 +408,52 @@ if (chatPagination.totalPages === 0) chatPagination.totalPages = 1;
 }
 
 // ============================================================
-// МЕНЮ ЧАТА (без эмодзи)
+// МЕНЮ ЧАТА
 // ============================================================
 
 function toggleChatMenu(dropdown) {
   if (!dropdown) return;
-  if (dropdown.style.display === 'none') {
+  if (dropdown.style.display === 'none' || !dropdown.style.display) {
     dropdown.className = 'chat-menu-dropdown';
     dropdown.innerHTML = `
-      <div class="chat-menu-item" data-action="close">Закрыть чат</div>
-      <div class="chat-menu-item" data-action="chats">Все чаты</div>
-      <div class="chat-menu-item" data-action="new">Новый чат</div>
-      <div class="chat-menu-item" data-action="checkpoint">Чекпоинт</div>
-      <div class="chat-menu-item" data-action="delete_messages">Удалить сообщения</div>
-      <div class="chat-menu-item" data-action="generate">Генерация промпта</div>
-      <div style="border-top:1px solid #333; margin:4px 12px;"></div>
-      <div class="chat-menu-item" data-action="mode_user">Режим User</div>
-      <div class="chat-menu-item" data-action="mode_char">Режим Char</div>
+      <div class="chat-menu-item" data-action="close">
+        ${window.iconImg('close', 'Закрыть', 19, 19)}
+        <span>Закрыть чат</span>
+      </div>
+      <div class="chat-menu-item" data-action="chats">
+        ${window.iconImg('chats_list', 'Все чаты', 19, 19)}
+        <span>Все чаты</span>
+      </div>
+      <div class="chat-menu-item" data-action="new">
+        ${window.iconImg('add', 'Новый чат', 19, 19)}
+        <span>Новый чат</span>
+      </div>
+      <div class="chat-menu-item" data-action="checkpoint">
+        ${window.iconImg('checkpoint', 'Чекпоинт', 19, 19)}
+        <span>Чекпоинт</span>
+      </div>
+      <div class="chat-menu-item" data-action="delete_messages">
+        ${window.iconImg('delete', 'Удалить сообщения', 19, 19)}
+        <span>Удалить сообщения</span>
+      </div>
+      <div class="chat-menu-item" data-action="generate">
+        ${window.iconImg('refresh', 'Генерация промпта', 19, 19)}
+        <span>Генерация промпта</span>
+      </div>
+      <div class="chat-menu-divider"></div>
+      <div class="chat-menu-item" data-action="mode_user">
+        ${window.iconImg('user', 'Режим User', 19, 19)}
+        <span>Режим User</span>
+      </div>
+      <div class="chat-menu-item" data-action="mode_char">
+        ${window.iconImg('char', 'Режим Char', 19, 19)}
+        <span>Режим Char</span>
+      </div>
     `;
     dropdown.style.display = 'block';
     chatMenuOpen = true;
 
     dropdown.querySelectorAll('.chat-menu-item').forEach(item => {
-      item.addEventListener('mouseenter', function() { this.style.background = '#2a2a34'; });
-      item.addEventListener('mouseleave', function() { this.style.background = 'transparent'; });
       item.addEventListener('click', function(e) {
         e.stopPropagation();
         const action = this.dataset.action;

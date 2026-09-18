@@ -256,13 +256,12 @@ def set_mode(chat_id):
 def generate_prompt(chat_id):
     body = request.get_json(force=True) or {}
     user_message = body.get("message", "")
+    censor_mode = body.get("censor_mode")
 
     chat = repo.get_chat(chat_id)
     if not chat:
         return jsonify({"error": "Чат не найден"}), 404
 
-    # Если последний неудалённый ответ был от бота (char), значит очередь персоны —
-    # нельзя сгенерировать промпт, пока не ответит user.
     active_msgs = [m for m in chat["messages"] if not m.get("deleted")]
     if active_msgs and active_msgs[-1]["role"] == "assistant" and chat.get("mode") == "char":
         return jsonify({
@@ -270,10 +269,9 @@ def generate_prompt(chat_id):
             "message": "Сделайте ответ от user и промпт сгенерируется",
         }), 409
 
-    result = build_main_prompt(chat_id, user_message)
+    result = build_main_prompt(chat_id, user_message, censor_mode=censor_mode)
     result["ok"] = True
     return jsonify(result)
-
 
 # ============================================
 # ЭКСПОРТ ЧАТА

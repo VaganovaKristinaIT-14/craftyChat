@@ -33,6 +33,8 @@ DEFAULT_SETTINGS = {
     "context_messages_count": 5,
     # Размер блока саммари (сообщений)
     "summary_step_size": 10,
+    # Режим цензурирования: "off" | "messages" | "full"
+    "censor_mode": "off",
     # Модель для tiktoken
     "tiktoken_model": "gpt-4",
     # Приблизительный подсчёт токенов, если tiktoken недоступен

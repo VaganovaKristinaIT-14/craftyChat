@@ -17,6 +17,10 @@ async function renderPresetsPanel() {
       panelBody.innerHTML = `<p style="color:#666;">Нет сборников пресетов</p>`;
       return;
     }
+
+    const settings = await getSettings();
+    const censorMode = settings.censor_mode || 'off';
+
     panelBody.innerHTML = `
       <div style="display:flex;align-items:center;gap:6px;margin-bottom:16px;flex-wrap:wrap;">
         <select id="collectionSelect" style="background:#2e2e2e;color:#fff;border:1px solid #555;border-radius:4px;padding:4px 8px;flex:1;min-width:120px;">
@@ -30,6 +34,13 @@ async function renderPresetsPanel() {
         <button class="preset-tool-btn" id="exportCollectionBtn" title="Экспортировать">${window.iconImg('export', 'Экспорт', 18, 18)}</button>
         <button class="preset-tool-btn" id="importCollectionBtn" title="Импортировать">${window.iconImg('import', 'Импорт', 18, 18)}</button>
       </div>
+
+      <!-- Блок кнопок цензуры -->
+      <div style="display:flex; flex-direction:column; gap:6px; margin-bottom:12px;">
+        <button class="censor-btn ${censorMode === 'messages' ? 'active' : ''}" id="censorMessagesBtn">Цензура сообщений</button>
+        <button class="censor-btn ${censorMode === 'full' ? 'active' : ''}" id="censorPromptBtn">Цензура промпта</button>
+      </div>
+
       <div style="margin-bottom:12px;">
         <div style="font-size:14px; color:var(--paper); margin-bottom:4px;">Макс. длина промпта (токены): <span id="tokenLimitDisplay">${collection.tokenLimit || 30000}</span></div>
         <input type="range" id="tokenLimit" min="5000" max="100000" step="1000" value="${collection.tokenLimit || 30000}" style="width:100%;">
@@ -43,32 +54,44 @@ async function renderPresetsPanel() {
         <h3 style="color:#fff;font-size:15px;">Пресеты</h3>
         <button class="preset-tool-btn" id="addPresetBtn" title="Добавить пресет">${window.iconImg('add', 'Добавить', 18, 18)}</button>
       </div>
-      <div id="presetsList" style="margin-top:8px;">
+      <div id="presetsList" style="margin-top:10px; display:flex; flex-direction:column; gap:10px;">
         ${collection.presets.length === 0 ? `
-          <p style="color:#888;font-size:13px;">Нет пресетов. Нажмите «+».</p>
+          <p style="color:var(--paper-faint); font-size:14px;">Нет пресетов. Нажмите «+».</p>
         ` : collection.presets.map(p => `
-          <div class="preset-item" data-id="${p.id}" style="background:#2e2e2e;padding:8px;border-radius:6px;margin-top:8px;">
-            <div style="display:flex;justify-content:space-between;align-items:center;">
-              <span style="color:#fff;cursor:pointer;" class="preset-toggle">${escHtml(p.name)}</span>
-              <div style="display:flex;align-items:center;gap:6px;">
+          <div class="preset-item" data-id="${p.id}">
+            <div class="preset-item-header">
+              <span class="preset-toggle">${escHtml(p.name)}</span>
+              <div class="preset-item-controls">
                 <label class="switch">
                   <input type="checkbox" ${p.enabled ? 'checked' : ''} class="preset-toggle-checkbox">
                   <span class="slider"></span>
                 </label>
-                <button class="edit-preset" title="Переименовать">${window.iconImg('rename', 'Переименовать', 14, 14)}</button>
-                <button class="delete-preset" title="Удалить">${window.iconImg('delete', 'Удалить', 14, 14)}</button>
+                <button class="edit-preset" title="Переименовать">${window.iconImg('rename', 'Переименовать', 18, 18)}</button>
+                <button class="delete-preset" title="Удалить">${window.iconImg('delete', 'Удалить', 18, 18)}</button>
               </div>
             </div>
-            <div class="preset-content" style="display:none;margin-top:8px;">
-              <textarea rows="2" style="width:100%;background:#111212;color:#fff;border:1px solid #555;border-radius:4px;padding:8px;resize:vertical;">${escHtml(p.content)}</textarea>
+            <div class="preset-content" style="display:none;">
+              <textarea rows="10">${escHtml(p.content)}</textarea>
             </div>
           </div>
         `).join('')}
       </div>
     `;
 
+    // Обработчики кнопок цензуры
+    document.getElementById('censorMessagesBtn')?.addEventListener('click', async function(e) {
+      e.stopPropagation();
+      const newMode = censorMode === 'messages' ? 'off' : 'messages';
+      await updateSettings({ censor_mode: newMode });
+      renderPresetsPanel();
+    });
 
-    // Обработчики (все с debounce / async)
+    document.getElementById('censorPromptBtn')?.addEventListener('click', async function(e) {
+      e.stopPropagation();
+      const newMode = censorMode === 'full' ? 'off' : 'full';
+      await updateSettings({ censor_mode: newMode });
+      renderPresetsPanel();
+    });
 
     // Переключение коллекции
     document.getElementById('collectionSelect')?.addEventListener('change', async function(e) {
@@ -95,7 +118,7 @@ async function renderPresetsPanel() {
       showToast('Сборник создан', 'success');
     });
 
-    // Переименовать коллекцию – без тоста
+    // Переименовать коллекцию
     document.getElementById('renameCollectionBtn')?.addEventListener('click', async function(e) {
       e.stopPropagation();
       const d = await getPresetsData();
@@ -107,7 +130,6 @@ async function renderPresetsPanel() {
       await savePresetsData(d);
       window.markDirty('presets');
       renderPresetsPanel();
-      // Убрано showToast
     });
 
     // Удалить коллекцию
@@ -288,7 +310,7 @@ async function renderPresetsPanel() {
       }, 500));
     });
 
-    // Переименовать пресет – без тоста
+    // Переименовать пресет
     document.querySelectorAll('.edit-preset').forEach(btn => {
       btn.addEventListener('click', async function(e) {
         e.stopPropagation();
@@ -305,7 +327,6 @@ async function renderPresetsPanel() {
         await savePresetsData(d);
         window.markDirty('presets');
         renderPresetsPanel();
-        // Убрано showToast
       });
     });
   } catch (e) {

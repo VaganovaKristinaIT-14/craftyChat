@@ -59,42 +59,50 @@ function debounce(fn, delay = 400) {
 }
 window.debounce = debounce;
 
-// ---------- TOAST ----------
+// ---------- TOAST (без эмодзи, строго по центру панели приложения) ----------
 const TOAST_TYPES = {
-  success: { icon: '✅', title: 'Готово', className: 'toast-success' },
-  error:   { icon: '❌', title: 'Ошибка', className: 'toast-error' },
-  warning: { icon: '⚠️', title: 'Внимание', className: 'toast-warning' },
-  info:    { icon: 'ℹ️', title: 'Информация', className: 'toast-info' },
+  success: { title: 'Готово', className: 'toast-success' },
+  error:   { title: 'Ошибка', className: 'toast-error' },
+  warning: { title: 'Внимание', className: 'toast-warning' },
+  info:    { title: 'Информация', className: 'toast-info' },
 };
 
 let toastContainerInstance = null;
 
 function getToastContainer() {
-  if (!toastContainerInstance) {
-    let container = document.querySelector('.toast-container');
-    if (!container) {
-      container = document.createElement('div');
-      container.className = 'toast-container';
-      document.body.appendChild(container);
-    }
-    toastContainerInstance = container;
+  const appContainer = document.querySelector('.app-container') || document.body;
+  let container = document.querySelector('.toast-container');
+
+  if (!container) {
+    container = document.createElement('div');
+    container.className = 'toast-container';
+    appContainer.appendChild(container);
+  } else if (container.parentElement !== appContainer) {
+    appContainer.appendChild(container);
   }
+
+  // Очищаем инлайн-стили, если они там были прописаны ранее
+  container.style.left = '';
+  container.style.top = '';
+  container.style.transform = '';
+
+  toastContainerInstance = container;
   return toastContainerInstance;
 }
 
-function showToast(message, type = 'info', duration = 5000) {
+function showToast(message, type = 'info', duration = 4000) {
   const container = getToastContainer();
   const existing = container.querySelectorAll('.toast');
-  if (existing.length >= 5) {
+  if (existing.length >= 4) {
     existing[0].classList.add('hidden');
-    setTimeout(() => existing[0].remove(), 400);
+    setTimeout(() => existing[0].remove(), 250);
   }
 
   const config = TOAST_TYPES[type] || TOAST_TYPES.info;
   const toast = document.createElement('div');
   toast.className = `toast ${config.className}`;
+
   toast.innerHTML = `
-    <span class="toast-icon">${config.icon}</span>
     <div class="toast-content">
       <div class="toast-title">${config.title}</div>
       <div class="toast-message">${escHtml(message)}</div>
@@ -107,19 +115,15 @@ function showToast(message, type = 'info', duration = 5000) {
   const closeBtn = toast.querySelector('.toast-close');
   closeBtn.addEventListener('click', () => {
     toast.classList.add('hidden');
-    setTimeout(() => toast.remove(), 400);
+    setTimeout(() => toast.remove(), 250);
   });
 
-  const timer = setTimeout(() => {
+  setTimeout(() => {
     if (toast.parentNode) {
       toast.classList.add('hidden');
-      setTimeout(() => toast.remove(), 400);
+      setTimeout(() => toast.remove(), 250);
     }
   }, duration);
-
-  toast.addEventListener('click', (e) => {
-    if (e.target === toast || e.target.closest('.toast-content')) return;
-  });
 
   return toast;
 }

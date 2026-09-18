@@ -24,6 +24,10 @@ close: `${ICON_BASE}close.svg`,
   message: `${ICON_BASE}message.svg`,
    pin: `${ICON_BASE}pin.svg`,
   lore_add: `${ICON_BASE}lore_add.svg`,
+  checkpoint: `${ICON_BASE}branch.svg`,
+  chats_list: `${ICON_BASE}chats_list.svg`,
+  user: `${ICON_BASE}user.svg`,
+  char: `${ICON_BASE}char.svg`,
 };
 
 export function iconImg(name, alt = '', width = 18, height = 18) {

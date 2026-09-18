@@ -12,12 +12,22 @@ __pycache__/
 .Python
 
 # Файлы данных — НЕ ЗАЛИВАЕМ!
-backend/data/
+# Игнорируем всё внутри папки данных
 backend/data/*
 
-# Фоны (полноразмерные изображения) — они могут быть большими
-backend/data/backgrounds/
+# Исключение: разрешаем только файл пресетов
+!backend/data/presets.json
 
+# Гарантированно игнорируем все пользовательские папки и файлы
+backend/data/chats/
+backend/data/backgrounds/
+backend/data/avatars/
+backend/data/characters.json
+backend/data/personas.json
+backend/data/lorebooks.json
+backend/data/chats_index.json
+backend/data/background.json
+backend/data/settings.json
 # Логи и временные файлы
 *.log
 *.tmp
