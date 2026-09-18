@@ -104,9 +104,6 @@ def activate_persona(persona_id):
 
 @bp.post("/<persona_id>/link-character")
 def link_character(persona_id):
-    """Привязка персоны к персонажу текущего открытого чата.
-    К одному персонажу может быть привязана только одна персона —
-    поэтому сначала снимаем эту привязку у всех остальных персон."""
     body = request.get_json(force=True) or {}
     character_id = body.get("character_id")
     if not character_id:
@@ -117,14 +114,25 @@ def link_character(persona_id):
     if not persona:
         return jsonify({"error": "Персона не найдена"}), 404
 
+    # 1. Убираем старые привязки этого персонажа у других персон
     for p in personas:
         if character_id in p.get("linked_characters", []) and p["id"] != persona_id:
-            p["linked_characters"].remove(character_id)
+            p["linked_characters"].remove(character_id)  # Исправлено: character_id
 
+    # 2. Добавляем привязку текущей персоне
     if character_id not in persona["linked_characters"]:
         persona["linked_characters"].append(character_id)
 
     repo.save_personas(personas)
+
+    # --- НОВОЕ: Синхронизируем все существующие чаты этого персонажа ---
+    chats = repo.get_chats_by_character(character_id)
+    for chat in chats:
+        if chat.get("persona_id") != persona_id:
+            chat["persona_id"] = persona_id
+            repo.save_chat(chat)
+    # -----------------------------------------------------------------
+
     return jsonify(persona)
 
 
@@ -132,15 +140,26 @@ def link_character(persona_id):
 def unlink_character(persona_id):
     body = request.get_json(force=True) or {}
     character_id = body.get("character_id")
+
     personas = repo.get_personas()
     persona = next((p for p in personas if p["id"] == persona_id), None)
     if not persona:
         return jsonify({"error": "Персона не найдена"}), 404
+
     if character_id in persona.get("linked_characters", []):
         persona["linked_characters"].remove(character_id)
-    repo.save_personas(personas)
-    return jsonify(persona)
 
+    repo.save_personas(personas)
+
+    # --- НОВОЕ: Сбрасываем чаты на глобальную активную персону ---
+    active_p_id = repo.get_active_persona_id()
+    chats = repo.get_chats_by_character(character_id)
+    for chat in chats:
+        chat["persona_id"] = active_p_id
+        repo.save_chat(chat)
+    # -------------------------------------------------------------
+
+    return jsonify(persona)
 
 @bp.get("/for-character/<character_id>")
 def persona_for_character(character_id):

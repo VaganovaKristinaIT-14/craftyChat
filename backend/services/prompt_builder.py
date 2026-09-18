@@ -1,11 +1,6 @@
 # ============================================
 # PROMPT BUILDER — сборка мейн промпта:
-# [Role] -> [Presets] -> [Character] -> [User] -> [Lore] -> [Summary] -> [Context] -> сообщение
-#
-# Обрезка при переполнении (от менее важного к более важному):
-#   1. Векторные записи лорбука — обрезаются суммарно до N символов (всегда).
-#   2. Блоки саммари — удаляются от самых старых, пока промпт не влезет.
-# Системный промпт и текущее сообщение пользователя НИКОГДА не обрезаются.
+# [Role] -> [System] -> [Character] -> [User] -> [Lore] -> [Summary] -> [Context] -> [Instruction] -> сообщение
 # ============================================
 from utils import repo
 from utils.tokens import count_tokens
@@ -31,17 +26,19 @@ def build_role_block(collection):
     parts = [p for p in (main_p, extra_p) if p]
     if not parts:
         return ""
-    return "[Role]\n" + "\n\n".join(parts)
+    content = "\n\n".join(parts)
+    return f"[Role]\n{{{{ {content} }}}}"
 
 
 def build_presets_block(collection):
+    """Пресеты теперь называются [System] — это системные указания"""
     if not collection:
         return ""
     enabled = [p for p in collection.get("presets", []) if p.get("enabled", True) and (p.get("content") or "").strip()]
     if not enabled:
         return ""
     body = "\n\n".join(p["content"].strip() for p in enabled)
-    return f"[Presets]\n{body}"
+    return f"[System]\n{{{{ {body} }}}}"
 
 
 def build_character_block(character):
@@ -57,7 +54,8 @@ def build_character_block(character):
             lines.append(f"{label}: {value}")
     if not lines:
         return ""
-    return "[Character]\n" + "\n".join(lines)
+    content = "\n".join(lines)
+    return f"[Character]\n{{{{ {content} }}}}"
 
 
 def build_user_block(persona):
@@ -68,12 +66,10 @@ def build_user_block(persona):
         return ""
     name = persona.get("name", "")
     header = f"Имя: {name}\n" if name else ""
-    return f"[User]\n{header}{desc}"
+    return f"[User]\n{{{{ {header}{desc} }}}}"
 
 
 def _get_history_window(messages, scan_depth_percent):
-    """Возвращает срез сообщений истории для сканирования ключевых слов
-    в зависимости от глубины (0..100%). 100% = вся история, 0% = только текущее сообщение."""
     active = [m for m in messages if not m.get("deleted")]
     if scan_depth_percent <= 0 or not active:
         return []
@@ -98,13 +94,10 @@ def _keyword_matches(entry_keywords, texts):
 
 
 def select_lore_entries(lorebook, messages, current_user_message, vector_char_limit):
-    """Классифицирует и отбирает записи лорбука по алгоритму:
-    Постоянные -> Обычные (по ключевым словам + приоритет) -> Векторные (блок, обрезан до N символов)."""
     if not lorebook:
         return "", 0
 
     entries = [e for e in lorebook.get("entries", []) if e.get("active", True)]
-
     constant_entries = [e for e in entries if e.get("status") == "constant"]
     normal_entries = [e for e in entries if e.get("status") == "normal"]
     vector_entries = [e for e in entries if e.get("status") == "vector"]
@@ -116,20 +109,16 @@ def select_lore_entries(lorebook, messages, current_user_message, vector_char_li
         if _keyword_matches(entry.get("keywords", []), window_texts):
             selected_normal.append(entry)
 
-    # Сортировка обычных записей по приоритету (1 — в начало, 10 — в конец)
     selected_normal.sort(key=lambda e: e.get("priority", 5))
-
     body_parts = []
 
     for e in constant_entries:
         if (e.get("content") or "").strip():
             body_parts.append(e["content"].strip())
-
     for e in selected_normal:
         if (e.get("content") or "").strip():
             body_parts.append(e["content"].strip())
 
-    # Векторные записи — единым блоком, в порядке активации, обрезаны суммарно до N символов
     vector_text = "\n".join(e["content"].strip() for e in vector_entries if (e.get("content") or "").strip())
     vector_discarded = 0
     if vector_text:
@@ -141,7 +130,8 @@ def select_lore_entries(lorebook, messages, current_user_message, vector_char_li
     if not body_parts:
         return "", vector_discarded
 
-    block = "[Lore]\nИнформация о мире:\n\n" + "\n\n".join(body_parts)
+    content = "\n\n".join(body_parts)
+    block = f"[Lore]\n{{{{ Информация о мире:\n\n{content} }}}}"
     return block, vector_discarded
 
 
@@ -149,12 +139,11 @@ def build_summary_block(chat):
     blocks = chat.get("summary_blocks", [])
     if not blocks:
         return ""
-    # Хронологический порядок (от старых к новым) — так удобнее ИИ читать историю
     ordered = sorted(blocks, key=lambda b: b.get("start_index", 0))
     body = "\n\n".join(b.get("summary", "").strip() for b in ordered if (b.get("summary") or "").strip())
     if not body:
         return ""
-    return f"[Summary]\n{body}"
+    return f"[Summary]\n{{{{ {body} }}}}"
 
 
 def build_context_block(chat, context_count):
@@ -166,7 +155,13 @@ def build_context_block(chat, context_count):
     for m in recent:
         speaker = "User" if m.get("role") == "user" else "Char"
         lines.append(f"{speaker}: {m.get('content', '')}")
-    return "[Context]\n" + "\n".join(lines)
+    content = "\n".join(lines)
+    return f"[Context]\n{{{{ {content} }}}}"
+
+
+def build_final_instruction_block():
+    """Финальная инструкция, чтобы модель не писала лишнего"""
+    return "[Instruction]\n{{ Отвечай только от лица персонажа. Не используй вводные фразы вроде 'Конечно', 'Вот твой ответ' или 'Я готов продолжать'. Пиши только текст сообщения. }}"
 
 
 def _assemble(parts):
@@ -174,7 +169,6 @@ def _assemble(parts):
 
 
 def build_main_prompt(chat_id, user_message):
-    """Основная функция сборки промпта. Возвращает dict с промптом и статистикой по токенам."""
     settings = repo.get_settings()
     chat = repo.get_chat(chat_id)
     if not chat:
@@ -192,23 +186,27 @@ def build_main_prompt(chat_id, user_message):
     vector_char_limit = settings["vector_entries_char_limit"]
     context_count = settings["context_messages_count"]
 
+    # Формируем блоки
     role_block = build_role_block(collection)
-    presets_block = build_presets_block(collection)
+    system_block = build_presets_block(collection) # Бывший Presets
     character_block = build_character_block(character)
     user_block = build_user_block(persona)
     lore_block, _ = select_lore_entries(lorebook, chat.get("messages", []), user_message, vector_char_limit)
     summary_block = build_summary_block(chat)
     context_block = build_context_block(chat, context_count)
+    instruction_block = build_final_instruction_block()
     current_message_block = (user_message or "").strip()
 
+    def assemble_full(s_block):
+        return _assemble([
+            role_block, system_block, character_block, user_block,
+            lore_block, s_block, context_block, instruction_block, current_message_block,
+        ])
+
     # ---- Шаг 1: сборка ----
-    full_prompt = _assemble([
-        role_block, presets_block, character_block, user_block,
-        lore_block, summary_block, context_block, current_message_block,
-    ])
+    full_prompt = assemble_full(summary_block)
     tokens_before = count_tokens(full_prompt)
     _log("СГЕНЕРИРОВАННЫЙ ПРОМПТ (до обрезки)", full_prompt)
-    print(f"[PromptBuilder] Токенов до обрезки: {tokens_before}, лимит: {token_limit}")
 
     if tokens_before <= token_limit:
         return {
@@ -219,24 +217,19 @@ def build_main_prompt(chat_id, user_message):
             "truncated": False,
         }
 
-    # ---- Шаг 4: обрезка при переполнении ----
-    # Векторные записи лорбука уже обрезаны в select_lore_entries (всегда до vector_char_limit).
-    # Если всё ещё не влезает — удаляем блоки саммари, начиная с самых старых.
+    # ---- Шаг 4: обрезка Саммари при переполнении ----
     remaining_summary_blocks = sorted(chat.get("summary_blocks", []), key=lambda b: b.get("start_index", 0))
 
     while True:
-        summary_block = ""
+        current_s_content = ""
         if remaining_summary_blocks:
             body = "\n\n".join(
                 b.get("summary", "").strip() for b in remaining_summary_blocks if (b.get("summary") or "").strip()
             )
             if body:
-                summary_block = f"[Summary]\n{body}"
+                current_s_content = f"[Summary]\n{{{{ {body} }}}}"
 
-        full_prompt = _assemble([
-            role_block, presets_block, character_block, user_block,
-            lore_block, summary_block, context_block, current_message_block,
-        ])
+        full_prompt = assemble_full(current_s_content)
         tokens_now = count_tokens(full_prompt)
 
         if tokens_now <= token_limit or not remaining_summary_blocks:
@@ -249,8 +242,6 @@ def build_main_prompt(chat_id, user_message):
     discarded = max(0, tokens_before - tokens_after)
 
     _log("СГЕНЕРИРОВАННЫЙ ПРОМПТ (после обрезки)", full_prompt)
-    print(f"[PromptBuilder] Токенов после обрезки: {tokens_after}, отброшено: {discarded}")
-
     return {
         "prompt": full_prompt,
         "tokens_before": tokens_before,

@@ -23,6 +23,12 @@ def list_characters():
     total = len(characters)
     start = (page - 1) * per_page
     items = characters[start:start + per_page]
+
+    # --- ДОБАВЛЕНО: Подсчет токенов для каждого персонажа в списке ---
+    for char in items:
+        char["token_count"] = _character_token_count(char)
+    # ----------------------------------------------------------------
+
     return jsonify({
         "items": items,
         "total": total,

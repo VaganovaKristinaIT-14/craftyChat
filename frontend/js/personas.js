@@ -125,20 +125,26 @@ async function renderPersonaDetail(personaId) {
         <h3 style="font-size:18px;">${escHtml(persona.name)}</h3>
         <div style="display:flex; gap:6px;">
           <button class="preset-tool-btn" id="renamePersonaBtn" title="Переименовать">${window.iconImg('rename', 'Переименовать', 18, 18)}</button>
-          <button class="preset-tool-btn" id="exportPersonaBtn" title="Экспортировать">${window.iconImg('export', 'Экспорт', 18, 18)}</button>
+          <button class="preset-tool-btn" id="exportPersonaBtn" title="Экспорт">${window.iconImg('export', 'Экспорт', 18, 18)}</button>
           <button class="preset-tool-btn btn-danger" id="deletePersonaBtn" title="Удалить">${window.iconImg('delete', 'Удалить', 18, 18)}</button>
         </div>
       </div>
       <div style="display:flex; gap:12px; margin:8px 0;">
-        <div id="personaAvatar" class="avatar-clickable" style="width:64px;height:64px;border-radius:50%;overflow:hidden;background:#333;display:flex;align-items:center;justify-content:center;font-size:28px;">
-          ${persona.avatar ? `<img src="${persona.avatar}">` : '👤'}
-          <div class="avatar-upload-badge" id="personaAvatarUpload" title="Загрузить аватар">📷</div>
+        <!-- Аватар теперь сам является кнопкой загрузки -->
+        <div id="personaAvatar" class="avatar-clickable" style="width:64px;height:64px;border-radius:50%;overflow:hidden;background:#333;display:flex;align-items:center;justify-content:center;font-size:28px;cursor:pointer;position:relative;border:1px solid var(--line);">
+          ${persona.avatar ? `<img src="${persona.avatar}" style="width:100%;height:100%;object-fit:cover;">` : '👤'}
+          <div class="avatar-hover-overlay" style="position:absolute; inset:0; background:rgba(0,0,0,0.4); display:flex; align-items:center; justify-content:center; opacity:0; transition:0.2s;">
+            ${window.iconImg('add_phot', '', 20, 20)}
+          </div>
         </div>
         <div style="flex:1;">
           <label>Описание</label>
           <textarea id="personaDesc" rows="3" style="width:100%;">${escHtml(persona.description)}</textarea>
         </div>
       </div>
+      <style>
+        #personaAvatar:hover .avatar-hover-overlay { opacity: 1 !important; }
+      </style>
       <div style="border-top:1px solid #333; padding-top:12px;">
         <div style="display:flex; justify-content:space-between; align-items:center;">
           <h4 style="font-size:15px;">Связи с персонажами</h4>
@@ -172,7 +178,7 @@ function attachPersonaDetailHandlers() {
   const container = document.getElementById('personaDetailContainer');
   if (!container) return;
 
-  // Переименовать – без тоста
+  // 1. ПЕРЕИМЕНОВАТЬ
   document.getElementById('renamePersonaBtn')?.addEventListener('click', async function() {
     if (!selectedPersonaId) return;
     const persona = await getPersona(selectedPersonaId);
@@ -182,11 +188,10 @@ function attachPersonaDetailHandlers() {
       await updatePersona(selectedPersonaId, { name: newName });
       window.markDirty('personas');
       renderPersonasPanel();
-      // убрали тост
     }
   });
 
-  // Экспорт
+  // 2. ЭКСПОРТ
   document.getElementById('exportPersonaBtn')?.addEventListener('click', async function() {
     if (!selectedPersonaId) return;
     const data = await exportPersona(selectedPersonaId);
@@ -198,7 +203,7 @@ function attachPersonaDetailHandlers() {
     showToast('Экспортировано', 'success');
   });
 
-  // Удалить
+  // 3. УДАЛИТЬ
   document.getElementById('deletePersonaBtn')?.addEventListener('click', async function() {
     if (!selectedPersonaId) return;
     const persona = await getPersona(selectedPersonaId);
@@ -211,42 +216,33 @@ function attachPersonaDetailHandlers() {
     showToast('Персона удалена', 'success');
   });
 
-  // Клик по аватарке
-  document.getElementById('personaAvatar')?.addEventListener('click', async function(e) {
-    if (e.target.closest('#personaAvatarUpload')) return;
-    if (!selectedPersonaId) return;
-    const persona = await getPersona(selectedPersonaId);
-    if (persona?.avatar) openLightbox(persona.avatar);
-  });
-
-  // Загрузка аватарки
-  document.getElementById('personaAvatarUpload')?.addEventListener('click', function(e) {
+  // 4. КЛИК ПО АВАТАРУ — ЗАГРУЗКА И ОБРЕЗКА (Лайтбокс удален)
+  document.getElementById('personaAvatar')?.addEventListener('click', function(e) {
     e.stopPropagation();
     if (!selectedPersonaId) return;
+
     const input = document.createElement('input');
-    input.type = 'file'; input.accept = 'image/*';
+    input.type = 'file';
+    input.accept = 'image/*';
     input.onchange = async function(ev) {
       const file = ev.target.files[0];
       if (!file) return;
-      if (file.size > 5*1024*1024) { showToast('Файл >5 МБ', 'error'); return; }
-      const reader = new FileReader();
-      reader.onload = function(e) {
-        compressImage(e.target.result, 800, 800, 0.9, async function(thumb) {
-          if (!thumb) { showToast('Не удалось обработать изображение', 'error'); return; }
-          const blob = await fetch(thumb).then(r => r.blob());
-          const fileObj = new File([blob], 'avatar.jpg', { type: 'image/jpeg' });
-          await uploadPersonaAvatar(selectedPersonaId, fileObj);
-          window.markDirty('personas');
-          renderPersonasPanel();
-          showToast('Аватар обновлён', 'success');
-        });
-      };
-      reader.readAsDataURL(file);
+
+      // Вызываем окно обрезки (из dataManager.js)
+      showImageCropper(file, async (croppedBase64) => {
+        const blob = await fetch(croppedBase64).then(r => r.blob());
+        const fileObj = new File([blob], 'avatar.jpg', { type: 'image/jpeg' });
+
+        await uploadPersonaAvatar(selectedPersonaId, fileObj);
+        window.markDirty('personas');
+        renderPersonasPanel();
+        showToast('Аватар обновлен', 'success');
+      });
     };
     input.click();
   });
 
-  // Описание – автосохранение
+  // 5. ОПИСАНИЕ — АВТОСОХРАНЕНИЕ
   document.getElementById('personaDesc')?.addEventListener('input', debounce(async function() {
     if (!selectedPersonaId) return;
     const val = this.value;
@@ -254,7 +250,7 @@ function attachPersonaDetailHandlers() {
     window.markDirty('personas');
   }, 500));
 
-  // Привязать персонажа
+  // 6. ПРИВЯЗАТЬ ПЕРСОНАЖА
   document.getElementById('linkCharBtn')?.addEventListener('click', async function() {
     if (!selectedPersonaId) return;
 
@@ -312,7 +308,7 @@ function attachPersonaDetailHandlers() {
     overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
   });
 
-  // Отвязать персонажа
+  // 7. ОТВЯЗАТЬ ПЕРСОНАЖА
   document.querySelectorAll('.unlink-btn').forEach(btn => {
     btn.addEventListener('click', async function(e) {
       e.stopPropagation();

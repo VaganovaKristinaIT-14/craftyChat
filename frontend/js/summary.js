@@ -15,6 +15,10 @@ async function renderSummaryPanel() {
   }
 
   try {
+    // ---- ЗАГРУЗКА СОХРАНЁННОГО ПРОМПТА ----
+    const settings = await getSettings();  // предполагается, что такая функция есть
+    const savedPrompt = settings.summary_prompt || 'Ниже приведены известные данные (карточки и лорбук). Ты НЕ должен включать их в саммари — они уже известны. Перескажи только новые события из сообщений ниже.';
+
     const status = await getSummaryStatus(window.currentChatId);
     const chat = await getChat(window.currentChatId);
     const blocks = chat.summary_blocks || [];
@@ -32,7 +36,7 @@ async function renderSummaryPanel() {
       </div>
       <div class="summary-prompt-section">
        <label class="summary-label">Промпт для генерации саммари</label>
-        <textarea id="summaryPrompt" rows="3" class="summary-prompt-text">${escHtml('Ниже приведены известные данные (карточки и лорбук). Ты НЕ должен включать их в саммари — они уже известны. Перескажи только новые события из сообщений ниже.')}</textarea>
+        <textarea id="summaryPrompt" rows="3" class="summary-prompt-text">${escHtml(savedPrompt)}</textarea>
         <button class="gold-outline-btn" id="generateSummaryBtn">Сгенерировать промпт</button>
         <span style="font-size:12px; color:var(--paper-faint); margin-left:8px;">(после получения ответа вставьте его в поле ниже)</span>
       </div>
@@ -68,6 +72,13 @@ async function renderSummaryPanel() {
 
     body.innerHTML = html;
 
+    // ---- АВТОСОХРАНЕНИЕ ПРОМПТА ПРИ ВВОДЕ ----
+    const promptField = document.getElementById('summaryPrompt');
+    if (promptField) {
+      promptField.addEventListener('input', async function() {
+        await updateSettings({ summary_prompt: this.value });  // сохраняем при каждом изменении
+      });
+    }
     // ========== ОБРАБОТЧИКИ ==========
 
     // Генерация промпта для саммари

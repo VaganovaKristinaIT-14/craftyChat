@@ -8,7 +8,14 @@
    small mono tags act as an eyebrow label everywhere, tying
    the visual language back to how CraftyChat actually thinks.
    ============================================================ */
-
+/* Подключение вашего локального шрифта из папки assets */
+@font-face {
+  font-family: 'font_heading'; /* Придумайте любое удобное имя */
+  src: url('assets/CormorantGaramond-Regular.ttf') format('ttf'); /* Или assets/fonts/шрифт.ttf */
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
 :root {
   /* --- Color: ink, curtain, spotlight --- */
   --ink-0: #000000;
@@ -32,7 +39,7 @@
 
   --ok: #7fae7a;
 
-  --font-display: 'Fraunces', Georgia, serif;
+  --font-display: 'font_heading', serif;
   --font-body: 'Manrope', 'Segoe UI', system-ui, sans-serif;
   --font-mono: 'IBM Plex Mono', ui-monospace, monospace;
 
@@ -374,123 +381,166 @@ nav {
 }/* ===== Главная страница — карточки чатов ===== */
 .chat-preview-card {
   display: flex;
-  align-items: stretch;
+  align-items: center; /* Центрируем контент относительно крупной аватарки */
   background: var(--ink-2);
   border: 1px solid var(--line-soft);
   border-radius: var(--radius-md);
-  padding: 12px 16px;
-  gap: 16px;
+  padding: 16px 20px; /* Было 12px 16px */
+  gap: 20px;          /* Было 16px */
   cursor: pointer;
-  transition: 0.15s ease;
+  transition: 0.18s ease;
 }
+
 .chat-preview-card:hover {
   background: var(--ink-3);
   border-color: var(--line);
+  transform: translateY(-1px);
 }
 
+/* Крупная аватарка чата — 74x74px (было 60px) */
 .chat-preview-avatar {
-  flex: 0 0 60px;
-  width: 60px;
-  height: 60px;
+  flex: 0 0 74px;
+  width: 74px;
+  height: 74px;
   border-radius: 50%;
   overflow: hidden;
   background: var(--ink-4);
   border: 1px solid var(--line);
-  align-self: center;
 }
+
 .chat-preview-avatar img {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  display: block;
 }
 
 .chat-preview-content {
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px; /* Чуть просторнее между шапкой карточки и текстом */
   min-width: 0;
 }
 
+/* Шапка карточки — приподнимаем имена выше */
 .chat-preview-header {
   display: flex;
   justify-content: space-between;
-  align-items: center;
-  gap: 8px;
+  align-items: flex-start; /* Прижимает имя вверх */
+  gap: 12px;
 }
+
 .chat-preview-info {
   display: flex;
+  flex-direction: row;
   align-items: baseline;
-  gap: 8px;
-  flex-wrap: wrap;
+  gap: 10px;
+  min-width: 0;
+  flex: 1;
+
 }
+
+/* Имя персонажа (увеличено до 21px) */
 .chat-preview-char {
   font-weight: 700;
   color: var(--paper);
-  font-size: 18px;
-}
-.chat-preview-name {
-  font-size: 17px;
-  color: var(--paper-faint);
-  font-weight: 400;
-}
-.chat-preview-meta {
-  display: flex;
-  align-items: center;
-  gap: 12px;
+  font-size: 21px; /* Было 18px */
+  line-height: 1.2;
   flex-shrink: 0;
 }
-.chat-preview-date {
-  font-size: 12px;
+
+/* Название чата  */
+.chat-preview-name {
+  font-size: 16px;
   color: var(--paper-faint);
+  font-weight: 400;
+  line-height: 1.2;
   white-space: nowrap;
-}
-.chat-preview-actions {
-  display: flex;
-  gap: 4px;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.chat-preview-footer {
+/* Правая часть (Дата, Кнопки, Сообщения) */
+.chat-preview-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.chat-preview-meta-top {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 14px;
 }
+
+.chat-preview-date {
+  font-size: 14.5px;
+  color: var(--paper-faint);
+  font-family: var(--font-mono);
+  white-space: nowrap;
+}
+
+/* Настройка футера (превью сообщения) */
+.chat-preview-footer {
+  width: 100%;
+  margin-top: 2px;
+}
+/* Счетчик сообщений (теперь он под датой) */
 .chat-preview-msg-count {
   display: flex;
   align-items: center;
-  gap: 4px;
-  font-size: 16px;
-  color: var(--paper-faint);
+  gap: 6px;
+  font-size: 18px;
+  color: var(--paper-dim);
+  font-family: var(--font-mono);
+  margin-top: 2px; /* Дополнительный визуальный отступ вниз от даты */
 }
 .chat-preview-msg-count img {
   filter: brightness(0) saturate(100%) invert(73%) sepia(8%) saturate(500%) hue-rotate(0deg) brightness(95%) contrast(90%);
 }
 .chat-preview-last-msg {
-  font-size: 14px;
+  font-size: 15.5px;
   color: var(--paper-dim);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 60%;
+  opacity: 0.85;
+  line-height: 1.45;
+
+  display: -webkit-box !important;
+  -webkit-box-orient: vertical !important;
+  -webkit-line-clamp: 2 !important;
+  line-clamp: 2 !important;
+
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: normal !important;
+  word-break: break-word;
+  max-height: calc(1.45em * 2);
+}
+/* Кнопки действий (закрепить, переименовать, удалить) */
+.chat-preview-actions {
+  display: flex;
+  gap: 4px;
+  align-items: center;
 }
 
-/* Кнопки в карточках (иконки белые) */
 .chat-preview-actions .preset-tool-btn {
-  padding: 2px 4px;
+  padding: 4px 6px;
   background: transparent;
   border: none;
   cursor: pointer;
-}
-.chat-preview-actions .preset-tool-btn img {
-  filter: brightness(0) saturate(100%) invert(1) brightness(1);
-  transition: 0.15s;
-}
-.chat-preview-actions .preset-tool-btn:hover {
-  background: var(--ink-4);
   border-radius: 4px;
 }
 
+.chat-preview-actions .preset-tool-btn:hover {
+  background: var(--ink-4);
+}
 
+.chat-preview-actions .preset-tool-btn img {
+  filter: brightness(0) saturate(100%) invert(1) brightness(1);
+  display: block;
+}
 
 /* ===== FORMS ===== */
 textarea, input[type="text"], input[type="number"], select {
@@ -599,14 +649,14 @@ label {
 .message-row {
   display: flex;
   align-items: flex-start;
-  gap: 12px;
+  gap: 14px;
   width: 100%;
 }
 
 /* --- Аватарка --- */
 .msg-avatar {
-  width: 40px;
-  height: 40px;
+  width: 75px;
+  height: 75px;
   border-radius: 50%;
   object-fit: cover;
   flex-shrink: 0;
@@ -615,7 +665,7 @@ label {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 18px;
+  font-size: 24px;
   color: var(--paper-dim);
   cursor: pointer;
 }
@@ -644,29 +694,36 @@ label {
   gap: 10px;
 }
 
+/* Контейнер кнопок в заголовке сообщения */
 .message-actions-right {
   display: flex;
   gap: 4px;
-  opacity: 0; /* Скрываем кнопки по умолчанию */
+  align-items: center;
+  opacity: 0.7;
   transition: opacity 0.15s ease;
+}
+
+/* При наведении на сообщение кнопка становится 100% яркой */
+.message-row:hover .message-actions-right {
+  opacity: 1;
 }
 
 .message-author {
   font-weight: 700;
-  font-size: 16px;
+  font-size: 20px;
   color: var(--paper);
 }
 
 .message-time {
   font-family: var(--font-mono);
-  font-size: 13px;
+  font-size: 16px;
   color: var(--paper-faint);
   opacity: 0.7;
 }
 
 /* --- Текст сообщения --- */
 .message-text {
-  font-size: 16px;
+  font-size: 18px;
   line-height: 1.6;
   color: var(--paper);
   word-wrap: break-word;
@@ -684,9 +741,9 @@ label {
 }
 .chat-input-row textarea {
   flex: 1;
-  min-height: 42px;
-  max-height: 288px;          /* 12 строк при line-height: 1.5, font-size: 16px */
-  overflow-y: auto;           /* включаем прокрутку при превышении */
+  min-height: 46px;
+  max-height: 288px;
+  overflow-y: auto;
   resize: none;
   background: var(--ink-0);
   border-radius: var(--radius-md);
@@ -694,7 +751,7 @@ label {
   color: var(--paper);
   padding: 10px 14px;
   font-family: var(--font-body);
-  font-size: 16px;
+  font-size: 17.5px;
   line-height: 1.5;
   transition: border-color 0.15s;
 }
@@ -752,12 +809,16 @@ label {
   color: var(--paper);
   border: 1px solid var(--amber);
   border-radius: var(--radius-sm);
-  padding: 8px 10px;
+  padding: 10px 14px;
   font-family: var(--font-body);
-  font-size: 15px;
+  font-size: 17.5px;
+  line-height: 1.5;
   resize: vertical;
-  min-height: 60px;
-  margin-top: 4px;
+  min-height: 80px;
+  max-height: 70vh; /* Чтобы сверхдлинные посты не улетали за экран */
+  overflow-y: auto;
+  margin-top: 6px;
+  box-sizing: border-box;
 }
 .edit-textarea:focus {
   outline: none;
@@ -771,9 +832,27 @@ label {
   justify-content: flex-end; /* КНОПКИ СПРАВА */
   margin-bottom: 4px; /* отступ снизу перед полем */
 }
-/* Иконки в кнопках редактирования — белые */
+
+.edit-msg-btn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: 0.15s;
+}
+
+.edit-msg-btn:hover {
+  background: var(--ink-4);
+}
+
+/* Иконка карандаша — ЧИСТО БЕЛАЯ */
 .edit-msg-btn img {
-  filter: brightness(0) saturate(100%) invert(1) brightness(0.5);
+  filter: brightness(0) invert(1) !important;
+  display: block;
 }
 
 /* Иконки в панели действий (галочка и крестик) — белые */
@@ -1353,6 +1432,11 @@ label {
   background: var(--ink-3);
   border-color: var(--amber-bright);
   color: var(--paper);
+}
+
+/* Цвет для активного (привязанного) лорбука — светло-зеленый #7fae7a */
+.preset-tool-btn.lore-active img {
+  filter: invert(63%) sepia(11%) saturate(1058%) hue-rotate(64deg) brightness(101%) contrast(86%) !important;
 }
 
 /* Статус-кружки (вместо текстовых бейджей) */
@@ -2061,3 +2145,35 @@ input[type="range"]::-moz-range-thumb:hover {
 .tool-btn:hover img {
   filter: brightness(0) saturate(100%) invert(1) brightness(1);
 }
+
+/* ===== IMAGE CROPPER ===== */
+.cropper-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.85);
+  display: flex; align-items: center; justify-content: center; z-index: 2000;
+  backdrop-filter: blur(8px);
+}
+.cropper-container {
+  background: var(--ink-2); border: 1px solid var(--line);
+  border-radius: var(--radius-lg); padding: 20px;
+  width: min(500px, 95vw); display: flex; flex-direction: column; gap: 15px;
+}
+.cropper-viewport {
+  width: 100%; aspect-ratio: 1; background: #000;
+  position: relative; overflow: hidden; border-radius: var(--radius-md);
+  cursor: move; touch-action: none;
+}
+#cropper-image {
+  position: absolute; top: 0; left: 0; transform-origin: center;
+  max-width: none;
+}
+.cropper-frame {
+  position: absolute; inset: 0; border: 2px solid var(--amber);
+  box-shadow: 0 0 0 500px rgba(0,0,0,0.5); pointer-events: none;
+}
+.cropper-controls {
+  display: flex; flex-direction: column; gap: 10px;
+}
+.cropper-zoom-row {
+  display: flex; align-items: center; gap: 10px; color: var(--paper-dim); font-size: 13px;
+}
+.cropper-zoom-row input { flex: 1; }

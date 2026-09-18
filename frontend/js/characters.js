@@ -43,7 +43,6 @@ async function renderCharactersPanel() {
 
     body.innerHTML = html;
 
-    // Открытие чата
     document.querySelectorAll('#charList .card-item').forEach(el => {
       el.addEventListener('click', function(e) {
         if (e.target.closest('.edit-char-btn')) return;
@@ -52,7 +51,6 @@ async function renderCharactersPanel() {
       });
     });
 
-    // Редактирование
     document.querySelectorAll('.edit-char-btn').forEach(btn => {
       btn.addEventListener('click', function(e) {
         e.stopPropagation();
@@ -61,14 +59,12 @@ async function renderCharactersPanel() {
       });
     });
 
-    // Создать
     document.getElementById('createCharBtn')?.addEventListener('click', function(e) {
       e.stopPropagation();
       selectedCharId = 'new';
       renderCharDetail();
     });
 
-    // Импорт
     document.getElementById('importCharBtn')?.addEventListener('click', function(e) {
       e.stopPropagation();
       const input = document.createElement('input');
@@ -89,7 +85,6 @@ async function renderCharactersPanel() {
       input.click();
     });
 
-    // Пагинация
     document.getElementById('prevCharPage')?.addEventListener('click', (e) => {
       e.stopPropagation();
       if (currentCharPage > 1) { currentCharPage--; renderCharactersPanel(); }
@@ -118,6 +113,7 @@ async function renderCharDetail() {
     let char = await getCharacter(selectedCharId);
     const totalText = char.name + Object.values(char.fields).join('');
     const tokenCount = Math.round(totalText.length / 3);
+    const isLoreActive = !!char.lorebook_id;
 
     body.innerHTML = `
       <button class="btn btn-sm btn-outline" id="backToCharList" style="margin-bottom:12px;">◀ Список</button>
@@ -126,11 +122,12 @@ async function renderCharDetail() {
         <span class="token-counter" style="color:var(--paper-faint); font-family:var(--font-mono); font-size:12px;">${tokenCount} токенов</span>
       </div>
       <div style="display:flex; gap:12px; align-items:center; margin:12px 0; background:var(--ink-3); padding:10px; border-radius:var(--radius-md);">
-        <div id="charAvatar" class="avatar-clickable" style="width:54px;height:54px;border-radius:50%;overflow:hidden;background:var(--ink-4);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-size:24px;cursor:pointer;flex-shrink:0;">
-          ${char.avatar ? `<img src="${char.avatar}" style="width:100%;height:100%;object-fit:cover;">` : '🤖'}
-        </div>
+        <div id="charAvatar" style="width:54px;height:54px;border-radius:50%;overflow:hidden;background:var(--ink-4);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0;">
+  ${char.avatar ? `<img src="${char.avatar}" style="width:100%;height:100%;object-fit:cover;">` : ''}
+</div>
         <div style="display:flex; gap:4px; flex-wrap:wrap;">
           <button class="preset-tool-btn" id="charAvatarUploadBtn" title="Загрузить аватар">${window.iconImg('add_phot', '', 20, 20)}</button>
+          <button class="preset-tool-btn ${isLoreActive ? 'lore-active' : ''}" id="charLoreBtn" title="Прикрепить лорбук">${window.iconImg('lore_add', '', 20, 20)}</button>
           <button class="preset-tool-btn" id="renameCharBtn" title="Переименовать">${window.iconImg('rename', '', 20, 20)}</button>
           <button class="preset-tool-btn" id="exportCharBtn" title="Экспорт">${window.iconImg('export', '', 20, 20)}</button>
           <button class="preset-tool-btn" id="cloneCharBtn" title="Клонировать">${window.iconImg('copy', '', 20, 20)}</button>
@@ -150,36 +147,36 @@ async function renderCharDetail() {
       </div>
     `;
 
-    document.getElementById('backToCharList')?.addEventListener('click', function(e) {
+    document.getElementById('backToCharList')?.addEventListener('click', (e) => { e.stopPropagation(); renderCharactersPanel(); });
+
+    // Привязка лорбука
+    document.getElementById('charLoreBtn')?.addEventListener('click', async (e) => {
       e.stopPropagation();
-      renderCharactersPanel();
+      await showLorebookSelectorForCharacter(char);
     });
 
-    document.getElementById('charAvatarUploadBtn')?.addEventListener('click', (e) => {
-        e.stopPropagation();
-        const input = document.createElement('input');
-        input.type = 'file'; input.accept = 'image/*';
-        input.onchange = async (ev) => {
-            const file = ev.target.files[0];
-            if (!file) return;
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                compressImage(e.target.result, 800, 800, 0.9, async (thumb) => {
-                    const blob = await fetch(thumb).then(r => r.blob());
-                    await uploadCharacterAvatar(char.id, new File([blob], 'avatar.jpg', {type:'image/jpeg'}));
-                    window.markDirty('characters');
-                    renderCharDetail();
-                });
-            };
-            reader.readAsDataURL(file);
-        };
-        input.click();
-    });
+document.getElementById('charAvatarUploadBtn')?.addEventListener('click', (e) => {
+  e.stopPropagation();
+  const input = document.createElement('input');
+  input.type = 'file'; input.accept = 'image/*';
+  input.onchange = async (ev) => {
+    const file = ev.target.files[0];
+    if (!file) return;
 
-    document.getElementById('charAvatar')?.addEventListener('click', (e) => {
-      e.stopPropagation();
-      if (char.avatar) openLightbox(char.avatar);
+    // Вызываем новое окно обрезки
+    showImageCropper(file, async (croppedBase64) => {
+      // croppedBase64 - это уже готовый JPEG 1024x1024
+      const blob = await fetch(croppedBase64).then(r => r.blob());
+      const fileObj = new File([blob], 'avatar.jpg', { type: 'image/jpeg' });
+
+      await uploadCharacterAvatar(char.id, fileObj);
+      window.markDirty('characters');
+      renderCharDetail(); // Обновляем экран
+      showToast('Аватар обновлен', 'success');
     });
+  };
+  input.click();
+});
 
     document.getElementById('renameCharBtn')?.addEventListener('click', async (e) => {
       e.stopPropagation();
@@ -244,7 +241,7 @@ function renderCharCreate(body) {
     </div>
     <div style="display:flex; gap:12px; align-items:center; margin:12px 0; background:var(--ink-3); padding:10px; border-radius:var(--radius-md);">
       <div style="width:54px;height:54px;border-radius:50%;background:var(--ink-4);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-size:24px;color:var(--paper-faint);flex-shrink:0;">
-        🤖
+        
       </div>
       <div style="display:flex; gap:6px; flex:1; justify-content:flex-end;">
         <button class="preset-tool-btn" id="saveNewCharBtn" title="Создать">${window.iconImg('ok', '', 22, 22)}</button>
@@ -303,4 +300,74 @@ function renderCharCreate(body) {
 
   document.getElementById('newCharName').addEventListener('input', updateTokens);
   document.querySelectorAll('.new-char-field').forEach(tx => tx.addEventListener('input', updateTokens));
+}
+
+/**
+ * Вспомогательная функция для выбора лорбука
+ */
+async function showLorebookSelectorForCharacter(char) {
+  try {
+    const lorebooks = await getLorebooks();
+    if (lorebooks.length === 0) {
+      showToast('Сначала создайте мир в меню World Info', 'warning');
+      return;
+    }
+
+    const itemsHtml = lorebooks.map(lb => `
+      <div class="char-select-item" data-id="${lb.id}" style="padding:10px; cursor:pointer; border-radius:8px; display:flex; justify-content:space-between; align-items:center;">
+        <span>${escHtml(lb.name)}</span>
+        ${char.lorebook_id === lb.id ? `<span style="color:#7fae7a; font-size:12px;">привязан</span>` : ''}
+      </div>
+    `).join('');
+
+    const overlay = document.createElement('div');
+    overlay.className = 'app-modal-overlay';
+    overlay.innerHTML = `
+      <div class="app-modal">
+        <div class="app-modal-title">Привязать мир (Lorebook)</div>
+        <div class="app-modal-message">Выберите мир, который будет использоваться в чате с этим персонажем.</div>
+        <div style="max-height:300px; overflow-y:auto; margin-bottom:16px; display:flex; flex-direction:column; gap:4px;">
+           <div class="char-select-item" data-id="none" style="padding:10px; cursor:pointer; border-radius:8px; color:var(--wine-bright);">
+            -- Отвязать мир --
+          </div>
+          ${itemsHtml}
+        </div>
+        <div class="app-modal-actions">
+          <button class="app-modal-btn app-modal-btn-cancel" id="closeLoreModal">Отмена</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+    requestAnimationFrame(() => overlay.classList.add('visible'));
+
+    overlay.querySelectorAll('.char-select-item').forEach(el => {
+      el.addEventListener('click', async () => {
+        const lbId = el.dataset.id === 'none' ? null : el.dataset.id;
+        try {
+          // Используем эндпоинт из бэкенда (POST /api/characters/<char_id>/lorebook)
+          // Или через updateCharacter, если бэкенд это поддерживает.
+          // В characters_routes.py есть bp.post("/<char_id>/lorebook")
+          await apiRequest(`${API_BASE}/characters/${char.id}/lorebook`, {
+            method: 'POST',
+            body: JSON.stringify({ lorebook_id: lbId })
+          });
+
+          window.markDirty('characters');
+          overlay.remove();
+          await renderCharDetail(); // перерисовываем
+          showToast(lbId ? 'Мир привязан' : 'Мир отвязан', 'success');
+        } catch (err) {
+          showToast('Ошибка привязки', 'error');
+        }
+      });
+      el.addEventListener('mouseenter', () => el.style.background = 'var(--ink-4)');
+      el.addEventListener('mouseleave', () => el.style.background = 'transparent');
+    });
+
+    overlay.querySelector('#closeLoreModal').addEventListener('click', () => overlay.remove());
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
+
+  } catch (err) {
+    showToast('Ошибка загрузки миров', 'error');
+  }
 }

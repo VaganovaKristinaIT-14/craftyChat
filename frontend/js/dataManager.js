@@ -474,8 +474,9 @@ async function updateSettings(data) { return apiRequest(`${API_BASE}/settings`, 
 async function countTokens(text) { return apiRequest(`${API_BASE}/settings/count-tokens`, { method: 'POST', body: JSON.stringify({ text }) }); }
 
 // ============================================================
-// КОМПРЕССИЯ ИЗОБРАЖЕНИЙ
+// КОМПРЕССИЯ И ОБРЕЗКА ИЗОБРАЖЕНИЙ
 // ============================================================
+
 function compressImage(dataUrl, maxWidth, maxHeight, quality, callback) {
   const img = new Image();
   img.onload = function() {
@@ -488,17 +489,120 @@ function compressImage(dataUrl, maxWidth, maxHeight, quality, callback) {
     canvas.width = Math.round(w);
     canvas.height = Math.round(h);
     const ctx = canvas.getContext('2d');
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
     ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
     callback(canvas.toDataURL('image/jpeg', quality));
   };
-  img.onerror = function() {
-    showToast('Не удалось обработать изображение', 'error');
-    callback(null);
-  };
   img.src = dataUrl;
 }
-window.compressImage = compressImage;
 
+// Модальное окно обрезки
+function showImageCropper(file, callback) {
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    const src = e.target.result;
+    const overlay = document.createElement('div');
+    overlay.className = 'cropper-overlay';
+    overlay.innerHTML = `
+      <div class="cropper-container">
+        <div class="app-modal-title" style="margin-bottom:0">Обрезка аватара</div>
+        <div class="cropper-viewport" id="crop-viewport">
+          <img src="${src}" id="cropper-img-element" style="display:none;">
+          <canvas id="cropper-canvas"></canvas>
+          <div class="cropper-frame"></div>
+        </div>
+        <div class="cropper-controls">
+          <div class="cropper-zoom-row">
+            <span>Зум</span>
+            <input type="range" id="crop-zoom" min="0.1" max="3" step="0.01" value="1">
+          </div>
+          <div class="app-modal-actions">
+            <button class="app-modal-btn app-modal-btn-primary" id="crop-save">Сохранить</button>
+            <button class="app-modal-btn app-modal-btn-cancel" id="crop-cancel">Отмена</button>
+          </div>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+
+    const canvas = document.getElementById('cropper-canvas');
+    const ctx = canvas.getContext('2d');
+    const img = new Image();
+    const zoomInput = document.getElementById('crop-zoom');
+
+    let scale = 1;
+    let posX = 0, posY = 0;
+    let isDragging = false;
+    let startX, startY;
+
+    img.onload = () => {
+      const viewportSize = document.getElementById('crop-viewport').offsetWidth;
+      canvas.width = viewportSize;
+      canvas.height = viewportSize;
+
+      // Начальный масштаб, чтобы картинка заполнила квадрат
+      const minScale = viewportSize / Math.min(img.width, img.height);
+      scale = minScale;
+      zoomInput.min = minScale;
+      zoomInput.max = minScale * 4;
+      zoomInput.value = scale;
+
+      posX = (viewportSize - img.width * scale) / 2;
+      posY = (viewportSize - img.height * scale) / 2;
+
+      draw();
+    };
+    img.src = src;
+
+    function draw() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(img, posX, posY, img.width * scale, img.height * scale);
+    }
+
+    // Логика перетаскивания
+    canvas.onmousedown = (e) => {
+      isDragging = true;
+      startX = e.clientX - posX; startY = e.clientY - posY;
+    };
+    window.onmousemove = (e) => {
+      if (!isDragging) return;
+      posX = e.clientX - startX; posY = e.clientY - startY;
+      draw();
+    };
+    window.onmouseup = () => isDragging = false;
+
+    // Зум
+    zoomInput.oninput = () => {
+      const oldScale = scale;
+      scale = parseFloat(zoomInput.value);
+      const centerX = canvas.width / 2;
+      const centerY = canvas.height / 2;
+      posX = centerX - (centerX - posX) * (scale / oldScale);
+      posY = centerY - (centerY - posY) * (scale / oldScale);
+      draw();
+    };
+
+    // Кнопки
+    document.getElementById('crop-cancel').onclick = () => overlay.remove();
+    document.getElementById('crop-save').onclick = () => {
+      const outputCanvas = document.createElement('canvas');
+      outputCanvas.width = 1024; outputCanvas.height = 1024;
+      const oCtx = outputCanvas.getContext('2d');
+      oCtx.imageSmoothingEnabled = true;
+      oCtx.imageSmoothingQuality = 'high';
+
+      // Рассчитываем множитель для сохранения качества
+      const factor = 1024 / canvas.width;
+      oCtx.drawImage(img, posX * factor, posY * factor, (img.width * scale) * factor, (img.height * scale) * factor);
+
+      overlay.remove();
+      callback(outputCanvas.toDataURL('image/jpeg', 0.92));
+    };
+  };
+  reader.readAsDataURL(file);
+}
+window.showImageCropper = showImageCropper;
 // ============================================================
 // КАСТОМНОЕ ПОДТВЕРЖДЕНИЕ
 // ============================================================
@@ -548,19 +652,25 @@ function showPrompt(message, defaultValue = '', options = {}) {
     const overlay = document.createElement('div');
     overlay.className = 'app-modal-overlay';
     overlay.innerHTML = `
-      <div class="app-modal">
-        <div class="app-modal-title">${escHtml(title)}</div>
-        ${message ? `<div class="app-modal-message">${escHtml(message)}</div>` : ''}
-        ${multiline
-          ? `<textarea class="app-modal-input" id="appModalInput" rows="4">${escHtml(defaultValue)}</textarea>`
-          : `<input class="app-modal-input" id="appModalInput" type="text" value="${escHtml(defaultValue)}">`
-        }
-        <div class="app-modal-actions">
-          <button class="app-modal-btn app-modal-btn-primary" id="appModalOk">${escHtml(okText)}</button>
-          <button class="app-modal-btn app-modal-btn-cancel" id="appModalCancel">${escHtml(cancelText)}</button>
-        </div>
-      </div>
-    `;
+  <div class="app-modal">
+    <div class="app-modal-title">${escHtml(title)}</div>
+    ${message ? `<div class="app-modal-message">${escHtml(message)}</div>` : ''}
+    <form autocomplete="off" onsubmit="return false;" style="display:contents;">
+      ${multiline
+        ? `<textarea class="app-modal-input" id="appModalInput" rows="4" 
+            autocomplete="off" name="q${Math.random()}" spellcheck="false" 
+            autocorrect="off" autocapitalize="off">${escHtml(defaultValue)}</textarea>`
+        : `<input class="app-modal-input" id="appModalInput" type="text" value="${escHtml(defaultValue)}" 
+            autocomplete="off" name="q${Math.random()}" spellcheck="false" 
+            autocorrect="off" autocapitalize="off">`
+      }
+    </form>
+    <div class="app-modal-actions">
+      <button class="app-modal-btn app-modal-btn-primary" id="appModalOk">${escHtml(okText)}</button>
+      <button class="app-modal-btn app-modal-btn-cancel" id="appModalCancel">${escHtml(cancelText)}</button>
+    </div>
+  </div>
+`;
     document.body.appendChild(overlay);
     requestAnimationFrame(() => overlay.classList.add('visible'));
     const input = overlay.querySelector('#appModalInput');

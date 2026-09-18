@@ -14,7 +14,6 @@ async function renderLorebooksPanel() {
     if (!selectedLorebookId && lorebooks.length > 0) selectedLorebookId = lorebooks[0].id;
     if (selectedLorebookId && !lorebooks.find(l => l.id === selectedLorebookId)) selectedLorebookId = null;
 
-    // --- Шапка (без фона и статистики) ---
     let html = `
       <div style="display:flex; align-items:center; gap:6px; margin-bottom:16px; flex-wrap:wrap;">
         <select id="lorebookSelect" style="background:var(--ink-0); color:var(--paper); border:1px solid var(--line); border-radius:4px; padding:4px 8px; min-width:160px;">
@@ -40,19 +39,17 @@ async function renderLorebooksPanel() {
         </div>
         <div id="entriesList" class="entries-grid">
           ${lb.entries.length === 0 ? '<p class="empty-message">Нет записей. Создайте первую!</p>' :
-            // сортируем записи по order (если есть)
             lb.entries.slice().sort((a, b) => (a.order || 0) - (b.order || 0)).map(e => {
               const isExpanded = expandedEntries.has(e.id);
-              // статус – только цветной кружок
               const statusColor = e.status === 'constant' ? 'var(--amber)' :
                                   e.status === 'vector' ? 'var(--paper-faint)' :
-                                  '#4caf50'; // normal – зеленый
+                                  '#4caf50';
               return `
                 <div class="entry-card ${e.active ? 'active' : 'inactive'}" data-id="${e.id}" draggable="true">
                   <div class="entry-header">
                     <div class="entry-title">
                       <span class="drag-handle" title="Перетащите для изменения порядка">⠿</span>
-                      <span class="entry-name">${escHtml(e.name)}</span>
+                      <span class="entry-name" style="cursor:pointer; font-weight:600;">${escHtml(e.name)}</span>
                       <span class="status-dot" style="display:inline-block; width:12px; height:12px; border-radius:50%; background:${statusColor}; margin-left:6px;" title="${e.status}"></span>
                       <span class="priority-badge" style="font-size:12px; background:var(--ink-4); padding:2px 8px; border-radius:12px; color:var(--paper-dim);">${e.priority}</span>
                     </div>
@@ -65,32 +62,29 @@ async function renderLorebooksPanel() {
                       <button class="delete-entry-btn" data-id="${e.id}" title="Удалить запись">${window.iconImg('delete', 'Удалить', 14, 14)}</button>
                     </div>
                   </div>
-                  <div class="entry-detail" style="display:${isExpanded ? 'block' : 'none'};">
-                    <div style="display:flex; justify-content:flex-end; margin-bottom:6px;">
-                      <button class="close-detail-btn" data-id="${e.id}" title="Закрыть" style="background:transparent; border:none; color:var(--paper-faint); cursor:pointer;">${window.iconImg('close', 'Закрыть', 16, 16)}</button>
-                    </div>
+                  <div class="entry-detail" style="display:${isExpanded ? 'block' : 'none'}; padding-top:12px; margin-top:12px; border-top:1px solid var(--line);">
                     <div class="entry-field">
-                      <label class="preset-label">Ключевые слова</label>
-                      <div class="keywords-container" style="display:flex; flex-wrap:wrap; gap:6px; border:1px solid var(--line); border-radius:var(--radius-sm); padding:6px; background:var(--ink-0);">
+                      <label class="preset-label">Ключевые слова (Enter для добавления)</label>
+                      <div class="keywords-container">
                         ${e.keywords.map(k => `
-                          <span class="keyword-chip" style="background:var(--ink-4); padding:4px 8px; border-radius:16px; display:inline-flex; align-items:center; gap:4px; font-size:13px;">
+                          <span class="keyword-chip">
                             ${escHtml(k)}
-                            <button class="remove-keyword" data-keyword="${k}" style="background:transparent; border:none; color:var(--paper-faint); cursor:pointer; padding:0; line-height:1;">${window.iconImg('close', 'Удалить', 12, 12)}</button>
+                            <button class="remove-keyword" data-keyword="${k}">${window.iconImg('close', 'Удалить', 12, 12)}</button>
                           </span>
                         `).join('')}
-                        <input class="add-keyword-input" placeholder="Введите ключевое слово..." style="border:none; background:transparent; color:var(--paper); padding:4px; flex:1; min-width:80px; outline:none; font-size:14px;">
+                        <input class="add-keyword-input" placeholder="Добавить...">
                       </div>
                     </div>
-                    <div class="entry-field row">
-                      <div class="field-group">
-                        <label class="preset-label">Приоритет (1–10)</label>
-                        <input type="number" class="entry-priority" value="${e.priority}" min="1" max="10" title="1 — самый высокий приоритет" />
+                    <div class="entry-field row" style="display:flex; gap:10px; margin-top:10px;">
+                      <div class="field-group" style="flex:1;">
+                        <label class="preset-label">Приоритет</label>
+                        <input type="number" class="entry-priority" value="${e.priority}" min="1" max="10">
                       </div>
-                      <div class="field-group">
-                        <label class="preset-label">Глубина сканирования (%)</label>
-                        <input type="number" class="entry-depth" value="${e.scan_depth}" min="0" max="100" title="Насколько далеко в истории искать ключевые слова" />
+                      <div class="field-group" style="flex:1;">
+                        <label class="preset-label">Глубина %</label>
+                        <input type="number" class="entry-depth" value="${e.scan_depth}" min="0" max="100">
                       </div>
-                      <div class="field-group">
+                      <div class="field-group" style="flex:1;">
                         <label class="preset-label">Статус</label>
                         <select class="entry-status">
                           <option value="constant" ${e.status === 'constant' ? 'selected' : ''}>Постоянная</option>
@@ -99,9 +93,12 @@ async function renderLorebooksPanel() {
                         </select>
                       </div>
                     </div>
-                    <div class="entry-field">
+                    <div class="entry-field" style="margin-top:10px;">
                       <label class="preset-label">Содержание записи</label>
-                      <textarea class="entry-content" rows="3" placeholder="Текст, который будет добавлен в промпт при активации записи">${escHtml(e.content)}</textarea>
+                      <textarea class="entry-content" rows="4">${escHtml(e.content)}</textarea>
+                    </div>
+                    <div style="display:flex; justify-content:flex-end; margin-top:10px;">
+                        <button class="btn btn-sm btn-outline close-detail-btn" data-id="${e.id}">Свернуть</button>
                     </div>
                   </div>
                 </div>
@@ -109,281 +106,188 @@ async function renderLorebooksPanel() {
             }).join('')}
         </div>
       `;
-    } else {
-      html += `<p class="empty-message">Создайте свой первый мир!</p>`;
     }
 
     body.innerHTML = html;
 
-    // ========== ОБРАБОТЧИКИ ==========
+    // --- Обработчики событий ---
 
-    // 1. Создать мир
-    document.getElementById('createLorebookBtn')?.addEventListener('click', async () => {
-      const name = await showPrompt('Название нового мира', '', { title: 'Новый мир' });
+    const stop = (e) => e.stopPropagation();
+
+    document.getElementById('lorebookSelect')?.addEventListener('change', function(e) {
+      selectedLorebookId = this.value;
+      renderLorebooksPanel();
+    });
+
+    document.getElementById('createLorebookBtn')?.addEventListener('click', async (e) => {
+      stop(e);
+      const name = await showPrompt('Название нового мира');
       if (name) {
         const newLb = await createLorebook(name);
         window.markDirty('lorebooks');
         selectedLorebookId = newLb.id;
         renderLorebooksPanel();
-        showToast('Мир создан', 'success');
       }
     });
 
-    // 2. Переключение мира
-    document.getElementById('lorebookSelect')?.addEventListener('change', function() {
-      selectedLorebookId = this.value;
-      renderLorebooksPanel();
-    });
-
-    // 3. Переименовать мир – без тоста
-    document.getElementById('renameLorebookBtn')?.addEventListener('click', async () => {
-      const id = document.getElementById('lorebookSelect').value;
-      const name = await showPrompt('Новое название мира', '', { title: 'Переименовать мир' });
+    document.getElementById('renameLorebookBtn')?.addEventListener('click', async (e) => {
+      stop(e);
+      const name = await showPrompt('Новое имя мира');
       if (name) {
-        await renameLorebook(id, name);
+        await renameLorebook(selectedLorebookId, name);
         window.markDirty('lorebooks');
         renderLorebooksPanel();
-        // убрали showToast
       }
     });
 
-    // 4. Дублировать мир
-    document.getElementById('duplicateLorebookBtn')?.addEventListener('click', async () => {
-      const id = document.getElementById('lorebookSelect').value;
-      const newLb = await duplicateLorebook(id);
-      window.markDirty('lorebooks');
-      selectedLorebookId = newLb.id;
-      renderLorebooksPanel();
-      showToast('Мир скопирован', 'success');
-    });
-
-    // 5. Удалить мир
-    document.getElementById('deleteLorebookBtn')?.addEventListener('click', async () => {
-      const id = document.getElementById('lorebookSelect').value;
-      if (!(await showConfirm('Удалить мир и все его записи? Это действие необратимо.', { title: 'Удаление мира', okText: 'Удалить' }))) return;
-      await deleteLorebook(id);
-      window.markDirty('lorebooks');
-      selectedLorebookId = null;
-      renderLorebooksPanel();
-      showToast('Мир удалён', 'success');
-    });
-
-    // 6. Экспорт мира
-    document.getElementById('exportLorebookBtn')?.addEventListener('click', async () => {
-      const id = document.getElementById('lorebookSelect').value;
-      const data = await exportLorebook(id);
-      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url; a.download = `lorebook_${data.name}.json`; a.click();
-      URL.revokeObjectURL(url);
-      showToast('Мир экспортирован', 'success');
-    });
-
-    // 7. Импорт мира
-    document.getElementById('importLorebookBtn')?.addEventListener('click', () => {
-      const input = document.createElement('input');
-      input.type = 'file'; input.accept = '.json';
-      input.onchange = async (ev) => {
-        const file = ev.target.files[0];
-        if (!file) return;
-        const text = await file.text();
-        try {
-          const imported = JSON.parse(text);
-          if (!imported.name) { showToast('Неверный формат', 'error'); return; }
-          const newLb = await importLorebook(imported);
-          window.markDirty('lorebooks');
-          selectedLorebookId = newLb.id;
-          renderLorebooksPanel();
-          showToast('Мир импортирован', 'success');
-        } catch (e) { showToast('Ошибка импорта', 'error'); }
-      };
-      input.click();
-    });
-
-    // 8. Добавить запись – кастомная кнопка
-    document.getElementById('addEntryBtn')?.addEventListener('click', async () => {
-      const id = document.getElementById('lorebookSelect').value;
-      await createLoreEntry(id, { name: 'Новая запись' });
+    document.getElementById('duplicateLorebookBtn')?.addEventListener('click', async (e) => {
+      stop(e);
+      await duplicateLorebook(selectedLorebookId);
       window.markDirty('lorebooks');
       renderLorebooksPanel();
-      showToast('Запись добавлена', 'success');
     });
 
-    // 9. Переименовать запись – без тоста
-    document.querySelectorAll('.edit-entry-btn').forEach(btn => {
-      btn.addEventListener('click', async function(e) {
-        e.stopPropagation();
-        const card = this.closest('.entry-card');
-        const entryId = card.dataset.id;
-        const worldId = document.getElementById('lorebookSelect').value;
-        const currentName = card.querySelector('.entry-name').textContent;
-        const newName = await showPrompt('Введите новое название записи', currentName, { title: 'Переименовать запись' });
-        if (newName && newName.trim()) {
-          await updateLoreEntry(worldId, entryId, { name: newName.trim() });
-          window.markDirty('lorebooks');
-          renderLorebooksPanel();
-          // убрали showToast
-        }
-      });
+    document.getElementById('deleteLorebookBtn')?.addEventListener('click', async (e) => {
+      stop(e);
+      if (await showConfirm('Удалить мир?')) {
+        await deleteLorebook(selectedLorebookId);
+        window.markDirty('lorebooks');
+        selectedLorebookId = null;
+        renderLorebooksPanel();
+      }
     });
 
-    // 10. Раскрытие/сворачивание записи: только открытие по клику на имя, закрытие по крестику или клику вне
+    document.getElementById('addEntryBtn')?.addEventListener('click', async (e) => {
+      stop(e);
+      await createLoreEntry(selectedLorebookId, { name: 'Новая запись' });
+      window.markDirty('lorebooks');
+      renderLorebooksPanel();
+    });
+
+    // Раскрытие / Свертывание
     document.querySelectorAll('.entry-name').forEach(el => {
       el.addEventListener('click', function(e) {
-        const card = this.closest('.entry-card');
-        const id = card.dataset.id;
-        // Если уже открыто – не закрываем (только открываем)
-        if (!expandedEntries.has(id)) {
-          expandedEntries.add(id);
-          renderLorebooksPanel();
-        }
+        stop(e);
+        const id = this.closest('.entry-card').dataset.id;
+        if (expandedEntries.has(id)) expandedEntries.delete(id);
+        else expandedEntries.add(id);
+        renderLorebooksPanel();
       });
     });
 
-    // Закрытие по крестику внутри деталей
     document.querySelectorAll('.close-detail-btn').forEach(btn => {
       btn.addEventListener('click', function(e) {
-        e.stopPropagation();
-        const card = this.closest('.entry-card');
-        const id = card.dataset.id;
+        stop(e);
+        const id = this.dataset.id;
         expandedEntries.delete(id);
         renderLorebooksPanel();
       });
     });
 
-    // Закрытие при клике вне карточки (глобально)
-    document.addEventListener('click', function onOutsideClick(e) {
-      const entriesList = document.getElementById('entriesList');
-      if (!entriesList) return;
-      if (!entriesList.contains(e.target)) {
-        if (expandedEntries.size > 0) {
-          expandedEntries.clear();
+    // Переключатель активности
+    document.querySelectorAll('.entry-active').forEach(cb => {
+      cb.addEventListener('change', async function(e) {
+        stop(e);
+        const id = this.closest('.entry-card').dataset.id;
+        await updateLoreEntry(selectedLorebookId, id, { active: this.checked });
+        window.markDirty('lorebooks');
+      });
+    });
+
+    // Редактирование имени записи
+    document.querySelectorAll('.edit-entry-btn').forEach(btn => {
+      btn.addEventListener('click', async function(e) {
+        stop(e);
+        const id = this.dataset.id;
+        const oldName = this.closest('.entry-card').querySelector('.entry-name').textContent;
+        const newName = await showPrompt('Новое имя записи', oldName);
+        if (newName) {
+          await updateLoreEntry(selectedLorebookId, id, { name: newName });
+          window.markDirty('lorebooks');
           renderLorebooksPanel();
         }
-      }
-    });
-
-    // 11. Включение/выключение записи (переключатель)
-    document.querySelectorAll('.entry-active').forEach(cb => {
-      cb.addEventListener('change', async function() {
-        const card = this.closest('.entry-card');
-        const entryId = card.dataset.id;
-        const worldId = document.getElementById('lorebookSelect').value;
-        await updateLoreEntry(worldId, entryId, { active: this.checked });
-        card.classList.toggle('active', this.checked);
-        card.classList.toggle('inactive', !this.checked);
       });
     });
 
-    // 12. Удаление записи
+    // Удаление записи
     document.querySelectorAll('.delete-entry-btn').forEach(btn => {
       btn.addEventListener('click', async function(e) {
-        e.stopPropagation();
-        const card = this.closest('.entry-card');
-        const entryId = card.dataset.id;
-        const worldId = document.getElementById('lorebookSelect').value;
-        if (!(await showConfirm('Удалить запись?', { title: 'Удаление записи', okText: 'Удалить' }))) return;
-        await deleteLoreEntry(worldId, entryId);
-        window.markDirty('lorebooks');
-        renderLorebooksPanel();
-        showToast('Запись удалена', 'success');
+        stop(e);
+        if (await showConfirm('Удалить запись?')) {
+          await deleteLoreEntry(selectedLorebookId, this.dataset.id);
+          window.markDirty('lorebooks');
+          renderLorebooksPanel();
+        }
       });
     });
 
-    // 13. Добавление ключевого слова (по Enter)
+    // Ключевые слова
     document.querySelectorAll('.add-keyword-input').forEach(input => {
       input.addEventListener('keydown', async function(e) {
         if (e.key === 'Enter') {
-          e.preventDefault();
+          stop(e);
           const kw = this.value.trim();
-          if (!kw) return;
-          const card = this.closest('.entry-card');
-          const entryId = card.dataset.id;
-          const worldId = document.getElementById('lorebookSelect').value;
-          await addKeywordToEntry(worldId, entryId, kw);
-          renderLorebooksPanel();
-        }
-      });
-    });
-
-    // 14. Удаление ключевого слова (иконка close)
-    document.querySelectorAll('.remove-keyword').forEach(btn => {
-      btn.addEventListener('click', async function(e) {
-        e.stopPropagation();
-        const kw = this.dataset.keyword;
-        const card = this.closest('.entry-card');
-        const entryId = card.dataset.id;
-        const worldId = document.getElementById('lorebookSelect').value;
-        await removeKeywordFromEntry(worldId, entryId, kw);
-        renderLorebooksPanel();
-      });
-    });
-
-    // 15. Автосохранение полей (приоритет, глубина, статус, содержание)
-    document.querySelectorAll('.entry-priority, .entry-depth, .entry-status, .entry-content').forEach(el => {
-      el.addEventListener('change', debounce(async function() {
-        const card = this.closest('.entry-card');
-        const entryId = card.dataset.id;
-        const worldId = document.getElementById('lorebookSelect').value;
-        const field = this.classList.contains('entry-priority') ? 'priority' :
-                      this.classList.contains('entry-depth') ? 'scan_depth' :
-                      this.classList.contains('entry-status') ? 'status' : 'content';
-        const val = this.type === 'number' ? parseInt(this.value) : this.value;
-        await updateLoreEntry(worldId, entryId, { [field]: val });
-        window.markDirty('lorebooks');
-        // Если изменился статус или приоритет, перерисовываем для обновления бейджей
-        if (field === 'status' || field === 'priority') {
-          renderLorebooksPanel();
-        }
-      }, 500));
-    });
-
-    // 16. Drag-and-drop (нативный)
-    let draggedItem = null;
-    const entries = document.querySelectorAll('.entry-card');
-    entries.forEach(entry => {
-      entry.addEventListener('dragstart', function(e) {
-        draggedItem = this;
-        this.style.opacity = '0.5';
-        e.dataTransfer.effectAllowed = 'move';
-      });
-      entry.addEventListener('dragend', function(e) {
-        this.style.opacity = '1';
-      });
-      entry.addEventListener('dragover', function(e) {
-        e.preventDefault();
-        e.dataTransfer.dropEffect = 'move';
-        const target = this;
-        if (target !== draggedItem) {
-          const rect = target.getBoundingClientRect();
-          const next = (e.clientY > rect.top + rect.height / 2);
-          const parent = target.parentNode;
-          if (next) {
-            parent.insertBefore(draggedItem, target.nextSibling);
-          } else {
-            parent.insertBefore(draggedItem, target);
+          if (kw) {
+            const id = this.closest('.entry-card').dataset.id;
+            await addKeywordToEntry(selectedLorebookId, id, kw);
+            renderLorebooksPanel();
           }
         }
       });
     });
 
-    // Сохранение порядка после перетаскивания (по окончании drag)
-    document.addEventListener('dragend', async function() {
-      if (draggedItem) {
-        const entriesList = document.getElementById('entriesList');
-        const cardIds = Array.from(entriesList.querySelectorAll('.entry-card')).map(el => el.dataset.id);
-        const worldId = document.getElementById('lorebookSelect').value;
-        if (worldId && cardIds.length) {
-          await reorderLoreEntries(worldId, cardIds);
-          window.markDirty('lorebooks');
-        }
-        draggedItem = null;
-      }
+    document.querySelectorAll('.remove-keyword').forEach(btn => {
+      btn.addEventListener('click', async function(e) {
+        stop(e);
+        const id = this.closest('.entry-card').dataset.id;
+        await removeKeywordFromEntry(selectedLorebookId, id, this.dataset.keyword);
+        renderLorebooksPanel();
+      });
     });
 
-  } catch (e) {
-    body.innerHTML = `<p class="error-message">Ошибка загрузки лорбуков</p>`;
-    console.error(e);
+    // Автосохранение контента и настроек
+    document.querySelectorAll('.entry-priority, .entry-depth, .entry-status, .entry-content').forEach(el => {
+      el.addEventListener('change', debounce(async function(e) {
+        const id = this.closest('.entry-card').dataset.id;
+        let field = 'content';
+        if (this.classList.contains('entry-priority')) field = 'priority';
+        if (this.classList.contains('entry-depth')) field = 'scan_depth';
+        if (this.classList.contains('entry-status')) field = 'status';
+
+        const val = this.type === 'number' ? parseInt(this.value) : this.value;
+        await updateLoreEntry(selectedLorebookId, id, { [field]: val });
+        window.markDirty('lorebooks');
+        if (field !== 'content') renderLorebooksPanel(); // Обновить бейджи
+      }, 600));
+    });
+
+    // Drag and Drop
+    let draggedId = null;
+    document.querySelectorAll('.entry-card').forEach(card => {
+      card.addEventListener('dragstart', (e) => {
+        draggedId = card.dataset.id;
+        card.style.opacity = '0.4';
+      });
+      card.addEventListener('dragend', () => card.style.opacity = '1');
+      card.addEventListener('dragover', (e) => e.preventDefault());
+      card.addEventListener('drop', async (e) => {
+        e.preventDefault();
+        const targetId = card.dataset.id;
+        if (draggedId && draggedId !== targetId) {
+          const ids = Array.from(document.querySelectorAll('.entry-card')).map(c => c.dataset.id);
+          const oldIdx = ids.indexOf(draggedId);
+          const newIdx = ids.indexOf(targetId);
+          ids.splice(oldIdx, 1);
+          ids.splice(newIdx, 0, draggedId);
+          await reorderLoreEntries(selectedLorebookId, ids);
+          window.markDirty('lorebooks');
+          renderLorebooksPanel();
+        }
+      });
+    });
+
+  } catch (err) {
+    console.error(err);
+    body.innerHTML = `<p class="error-message">Ошибка загрузки</p>`;
   }
 }

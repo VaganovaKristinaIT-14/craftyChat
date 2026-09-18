@@ -23,6 +23,7 @@ close: `${ICON_BASE}close.svg`,
   add_phot: `${ICON_BASE}add_phot.svg`,
   message: `${ICON_BASE}message.svg`,
    pin: `${ICON_BASE}pin.svg`,
+  lore_add: `${ICON_BASE}lore_add.svg`,
 };
 
 export function iconImg(name, alt = '', width = 18, height = 18) {

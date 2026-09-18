@@ -32,23 +32,39 @@ function resetPagination(chatId) {
   chatPagination.scrollPos = 0;
 }
 
+// В файле chat.js найти функцию window.openChat и заменить её:
+
 window.openChat = async function(chatId) {
   const chat = await getChat(chatId);
   if (!chat) {
     showToast('Чат не найден', 'error');
     return;
   }
+
+  // Получаем персону, которая СЕЙЧАС привязана к этому боту на бэкенде
   const linkedPersona = await getPersonaForCharacter(chat.character_id);
+
+  let targetPersonaId = null;
+
   if (linkedPersona) {
-    if (chat.persona_id !== linkedPersona.id) {
-      await updateChat(chatId, { persona_id: linkedPersona.id });
-      chat.persona_id = linkedPersona.id;
-    }
+    // Если привязка есть, используем её
+    targetPersonaId = linkedPersona.id;
     await activatePersona(linkedPersona.id);
+  } else {
+    // Если привязки нет, пробуем использовать глобально активную персону
+    const personasData = await getPersonas(1, 1);
+    targetPersonaId = personasData.active_persona_id;
   }
+
+  // Если persona_id в чате устарел или отсутствует, обновляем чат на бэкенде
+  if (chat.persona_id !== targetPersonaId) {
+    await updateChat(chatId, { persona_id: targetPersonaId });
+    chat.persona_id = targetPersonaId;
+  }
+
   window.currentChatId = chatId;
   chatMessagesPage = 1;
-  resetPagination(chatId); // сбрасываем пагинацию для нового чата
+  resetPagination(chatId);
   await renderChat();
 };
 
@@ -185,8 +201,10 @@ if (chatPagination.totalPages === 0) chatPagination.totalPages = 1;
                     <span class="message-time">${formatDate(m.timestamp)}</span>
                   </div>
                   <div class="message-actions-right">
-                    <button class="edit-msg-btn" data-index="${m.index}" data-role="${m.role}" title="Редактировать">${window.iconImg('rename', 'Редактировать', 14, 14)}</button>
-                  </div>
+  <button class="edit-msg-btn" data-index="${m.index}" data-role="${m.role}" title="Редактировать">
+    ${window.iconImg('rename', 'Редактировать', 18, 18)}
+  </button>
+</div>
                 </div>
                 <div class="message-text">${escHtml(m.content)}</div>
                 <div class="message-meta" style="display:none;">
@@ -716,6 +734,20 @@ function startEditMessage(row, index, role) {
   textarea.value = originalText;
   textDiv.replaceWith(textarea);
 
+  // --- АВТОРАСШИРЕНИЕ ПОД ВЕСЬ ТЕКСТ СООБЩЕНИЯ ---
+  // Сразу задаем высоту по содержимому сообщения
+  setTimeout(() => {
+    textarea.style.height = 'auto';
+    textarea.style.height = (textarea.scrollHeight + 15) + 'px';
+  }, 0);
+
+  // И динамически меняем при ручном вводе/удалении текста
+  textarea.addEventListener('input', function() {
+    this.style.height = 'auto';
+    this.style.height = (this.scrollHeight + 15) + 'px';
+  });
+  // ----------------------------------------------
+
   editBtn.style.display = 'none';
 
   const header = row.querySelector('.message-header');
@@ -736,7 +768,6 @@ function startEditMessage(row, index, role) {
     }
     try {
       await editMessage(window.currentChatId, index, newText);
-      // После редактирования сбрасываем пагинацию, чтобы обновить список
       resetPagination(window.currentChatId);
       await renderChat();
     } catch (e) {
@@ -749,8 +780,8 @@ function startEditMessage(row, index, role) {
   });
 
   textarea.focus();
-  textarea.select();
 }
+
 
 function cancelEdit() {
   if (!activeEditRow) return;

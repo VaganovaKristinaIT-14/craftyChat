@@ -22,7 +22,7 @@ def update_settings():
     settings = repo.get_settings()
     for field in (
         "token_limit", "vector_entries_char_limit", "context_messages_count",
-        "summary_step_size",
+        "summary_step_size","summary_prompt",
     ):
         if field in body:
             settings[field] = body[field]
