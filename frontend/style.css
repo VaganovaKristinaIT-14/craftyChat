@@ -1817,6 +1817,15 @@ input:checked + .slider::before {
   color: var(--amber);
 }
 
+/* Мягкий неяркий винный/красный цвет для иконки саммари, когда памяти не хватает */
+.menu-btn.summary-alert img {
+  filter: brightness(0) saturate(100%) invert(48%) sepia(50%) saturate(1400%) hue-rotate(315deg) brightness(95%) contrast(90%) !important;
+}
+
+.menu-btn.summary-alert:hover img {
+  filter: brightness(0) saturate(100%) invert(60%) sepia(50%) saturate(1800%) hue-rotate(315deg) brightness(105%) contrast(95%) !important;
+}
+
 /* ============================================================
    КАСТОМНЫЕ МОДАЛЬНЫЕ ОКНА (подтверждение / ввод текста)
    Заменяют стандартные window.confirm / window.prompt браузера

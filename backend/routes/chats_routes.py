@@ -16,13 +16,23 @@ def _now_iso():
     return datetime.now(timezone.utc).isoformat()
 
 
+def _recalculate_chat_mode(chat):
+    """Определяет корректный режим чата на основе последнего живого сообщения."""
+    active_msgs = [m for m in chat.get("messages", []) if not m.get("deleted")]
+    if active_msgs:
+        last_role = active_msgs[-1]["role"]
+        chat["mode"] = "char" if last_role == "user" else "user"
+    else:
+        chat["mode"] = "user"
+    return chat["mode"]
+
+
 # ============================================
 # ГЛАВНАЯ СТРАНИЦА — последние чаты
 # ============================================
 @bp.get("/recent")
 def recent_chats():
     index = repo.get_chats_index()
-    # закреплённые — вверху, дальше по дате обновления
     index.sort(key=lambda c: (not c.get("pinned", False), c["updated"]), reverse=False)
     index.sort(key=lambda c: c["updated"], reverse=True)
     index.sort(key=lambda c: c.get("pinned", False), reverse=True)
@@ -48,7 +58,10 @@ def get_chat(chat_id):
 
     page = request.args.get("page")
     per_page = int(request.args.get("per_page", 20))
-    active_msgs = chat["messages"]
+
+    # Пагинацию считаем ТОЛЬКО по живым сообщениям
+    active_msgs = [m for m in chat.get("messages", []) if not m.get("deleted")]
+    _recalculate_chat_mode(chat)
 
     if page is not None:
         page = int(page)
@@ -58,6 +71,10 @@ def get_chat(chat_id):
         chat = dict(chat)
         chat["messages"] = active_msgs[max(0, start):max(0, end)]
         chat["messages_total"] = total
+    else:
+        chat = dict(chat)
+        chat["messages"] = active_msgs
+        chat["messages_total"] = len(active_msgs)
 
     return jsonify(chat)
 
@@ -72,15 +89,13 @@ def create_chat():
     if not character:
         return jsonify({"error": "Персонаж не найден"}), 404
 
-    # Если к персонажу привязана персона — она становится активной автоматически
     personas = repo.get_personas()
     linked_persona = next((p for p in personas if character_id in p.get("linked_characters", [])), None)
     persona_id = body.get("persona_id") or (linked_persona["id"] if linked_persona else repo.get_active_persona_id())
 
     chat = repo.default_chat(character_id, persona_id, body.get("name"))
+    chat["step_size"] = 15  # Задаем шаг в 15 сообщений для новых чатов
 
-    # Если у карточки чара есть вступительное сообщение — оно выводится первым (от Char),
-    # и далее диалог всё равно продолжается в режиме User.
     if character.get("first_message"):
         chat["messages"].append({
             "index": 0,
@@ -125,7 +140,7 @@ def create_checkpoint(chat_id):
     checkpoint = copy.deepcopy(chat)
     checkpoint["id"] = generate_id()
     existing_checkpoints = [c for c in repo.get_chats_by_character(chat["character_id"])
-                             if c["name"].startswith(chat["name"] + " Checkpoint")]
+                            if c["name"].startswith(chat["name"] + " Checkpoint")]
     checkpoint["name"] = f"{chat['name']} Checkpoint {len(existing_checkpoints) + 1}"
     checkpoint["created"] = _now_iso()
     repo.save_chat(checkpoint)
@@ -138,7 +153,7 @@ def create_checkpoint(chat_id):
 @bp.post("/<chat_id>/messages")
 def add_message(chat_id):
     body = request.get_json(force=True) or {}
-    role = body.get("role")  # "user" | "assistant"
+    role = body.get("role")
     content = body.get("content", "")
     if role not in ("user", "assistant"):
         return jsonify({"error": "role должен быть 'user' или 'assistant'"}), 400
@@ -147,8 +162,6 @@ def add_message(chat_id):
     if not chat:
         return jsonify({"error": "Чат не найден"}), 404
 
-    # Важный момент: если последний ответ был от бота, нельзя генерировать промпт/отвечать
-    # за user, пока не будет реального ответа от Char — контролируется через mode.
     next_index = (chat["messages"][-1]["index"] + 1) if chat["messages"] else 0
     message = {
         "index": next_index,
@@ -159,19 +172,17 @@ def add_message(chat_id):
     }
     chat["messages"].append(message)
 
-    # автоматическое переключение режима после каждой отправки
+    # Автоматическое переключение режима после отправки
     chat["mode"] = "char" if role == "user" else "user"
+    chat["step_size"] = 15
 
     repo.save_chat(chat)
 
-    unsummarized_count = len([m for m in chat["messages"]
-                               if not m.get("deleted") and m["index"] > chat.get("last_summarized_index", -1)])
-    notify_summary = unsummarized_count > 0 and unsummarized_count % 10 == 0
-
+    # Уведомление отключено: пользователь сам видит статус по иконке в шапке
     return jsonify({
         "message": message,
         "chat_mode": chat["mode"],
-        "notify_update_history": notify_summary,
+        "notify_update_history": False,
     }), 201
 
 
@@ -191,8 +202,6 @@ def edit_message(chat_id, index):
 
 @bp.delete("/<chat_id>/messages")
 def delete_messages(chat_id):
-    """Массовое удаление (пометка deleted=true) — тело запроса: {"indices": [1,2,3]}.
-    Не удаляет физически, только помечает. Также чистит связанные блоки саммари."""
     body = request.get_json(force=True) or {}
     indices = body.get("indices", [])
     chat = repo.get_chat(chat_id)
@@ -202,6 +211,8 @@ def delete_messages(chat_id):
     for m in chat["messages"]:
         if m["index"] in indices:
             m["deleted"] = True
+
+    new_mode = _recalculate_chat_mode(chat)
     repo.save_chat(chat)
 
     summary_result = summary_service.handle_messages_deletion(chat_id, indices)
@@ -209,6 +220,7 @@ def delete_messages(chat_id):
     return jsonify({
         "ok": True,
         "deleted_indices": indices,
+        "chat_mode": new_mode,
         "summary_blocks_removed": summary_result["removed_blocks"],
         "last_summarized_index": summary_result["last_summarized_index"],
     })
@@ -223,10 +235,13 @@ def delete_single_message(chat_id, index):
     if not message:
         return jsonify({"error": "Сообщение не найдено"}), 404
     message["deleted"] = True
+
+    new_mode = _recalculate_chat_mode(chat)
     repo.save_chat(chat)
     summary_result = summary_service.handle_messages_deletion(chat_id, [index])
     return jsonify({
         "ok": True,
+        "chat_mode": new_mode,
         "summary_blocks_removed": summary_result["removed_blocks"],
         "last_summarized_index": summary_result["last_summarized_index"],
     })
@@ -272,6 +287,7 @@ def generate_prompt(chat_id):
     result = build_main_prompt(chat_id, user_message, censor_mode=censor_mode)
     result["ok"] = True
     return jsonify(result)
+
 
 # ============================================
 # ЭКСПОРТ ЧАТА
@@ -320,7 +336,7 @@ def import_chat():
 
 
 # ============================================
-# САММАРИ (эндпоинты чата, делегируют в summary_service)
+# САММАРИ
 # ============================================
 @bp.get("/<chat_id>/summary/status")
 def summary_status(chat_id):

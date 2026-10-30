@@ -140,6 +140,10 @@ window.renderMainPage = async function() {
   main.style.padding = '';
   main.style.overflow = '';
 
+  if (typeof updateSummaryIconStatus === 'function') {
+    updateSummaryIconStatus(null); // сбрасывает цвет иконки Саммари в белый
+  }
+
   main.innerHTML = `
     <div style="display:flex; flex-direction:column; height:100%;">
       <h1 style="margin-bottom:20px; font-size:34px; font-family:var(--font-display); letter-spacing:0.5px;">Недавние чаты</h1>

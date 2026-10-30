@@ -1,44 +1,56 @@
 # ============================================
 # SUMMARY SERVICE — блоки саммари чата (долгосрочная память)
-# Это ОТДЕЛЬНЫЙ механизм от мейн промпта.
 # ============================================
 from utils import repo
 from utils.ids import generate_id
 from utils.tokens import count_tokens
 
+# ЖЕСТКИЙ ШАГ: ровно 15 сообщений на блок саммари
+STEP_SIZE = 15
+
 DEFAULT_SUMMARY_PROMPT = (
-    "Ниже приведены известные данные (карточки и лорбук). Ты НЕ должен включать их в "
-    "саммари — они уже известны. Перескажи только новые события из сообщений ниже. "
-    "Пиши кратко, по делу, сохраняя ключевые факты, эмоции и изменения в отношениях персонажей."
+    "Ты — летописец и архивариус ролевой игры. Твоя задача — составить предельно плотную, "
+    "фактологическую и психологическую выжимку (Summary) последних событий из сообщений ниже.\n\n"
+    "КАТЕГОРИЧЕСКИ ЗАПРЕЩЕНО:\n"
+    "- Пересказывать базовые описания карточек персонажей и лорбука (система их уже знает).\n"
+    "- Использовать воду, метафоры и общие фразы ('они долго говорили').\n"
+    "- Писать вводные фразы ('Вот пересказ', 'В этих сообщениях...').\n\n"
+    "СТРУКТУРА ВЫВОДА (следуй строго по пунктам):\n"
+    "1. ХРОНИКА СОБЫТИЙ: ключевые поворотные факты (кто куда пошел, что нашел, приказы, выстрелы).\n"
+    "2. ПСИХОЛОГИЯ И ОТНОШЕНИЯ: внутреннее состояние (страхи, срывы, паника), сдвиги в доверии, обиды, подозрения, утаенная правда.\n"
+    "3. ФИЗИЧЕСКИЙ СТАТУС И ВЕЩИ: ранения, травмы, утомление, принятые препараты/яд/алкоголь, важные предметы.\n"
+    "4. АКТИВНЫЕ ОБЕЩАНИЯ И ЦЕЛИ: о чем договорились, невыполненные обещания, куда запланировали поехать.\n\n"
+    "Стиль: предельно краткий, сухой, телеграфный русский язык с максимальной концентрацией смысла."
 )
 
 
 def get_summary_status(chat):
-    """Зелёная галочка / красный крест — актуальность памяти."""
-    active_msgs = [m for m in chat["messages"] if not m.get("deleted")]
+    """Актуальность памяти чата."""
+    active_msgs = [m for m in chat.get("messages", []) if not m.get("deleted")]
     last_index = active_msgs[-1]["index"] if active_msgs else -1
     unsummarized = [m for m in active_msgs if m["index"] > chat.get("last_summarized_index", -1)]
 
-    # Не хватает данных показываем только когда сообщений накопилось >= step_size
-    is_stale = len(unsummarized) >= chat.get("step_size", 10)
+    step_size = STEP_SIZE
+    is_stale = len(unsummarized) >= step_size
 
     return {
         "is_actual": not is_stale,
         "label": "Память актуальна" if not is_stale else "Не хватает данных",
         "unsummarized_count": len(unsummarized),
+        "step_size": step_size,
         "last_summarized_index": chat.get("last_summarized_index", -1),
         "last_message_index": last_index,
     }
 
 
 def build_summary_prompt(chat_id, summary_prompt_text=None):
-    """Формирует промпт для генерации нового блока саммари (Шаг 5 из ТЗ)."""
+    """Формирует промпт строго на 15 сообщений."""
     chat = repo.get_chat(chat_id)
     if not chat:
         raise ValueError(f"Чат {chat_id} не найден")
 
-    step_size = chat.get("step_size", 10)
-    active_msgs = [m for m in chat["messages"] if not m.get("deleted")]
+    step_size = STEP_SIZE
+    active_msgs = [m for m in chat.get("messages", []) if not m.get("deleted")]
     unsummarized = [m for m in active_msgs if m["index"] > chat.get("last_summarized_index", -1)]
 
     if len(unsummarized) < step_size:
@@ -81,10 +93,10 @@ def build_summary_prompt(chat_id, summary_prompt_text=None):
     messages_text = "\n".join(
         f"{'User' if m['role'] == 'user' else 'Char'} (#{m['index']}): {m['content']}" for m in batch
     )
-    parts.append(f"[Сообщения для пересказа]\n{messages_text}")
+    parts.append(f"[Сообщения для пересказа (диапазон #{start_index} - #{end_index})]\n{messages_text}")
 
     full_prompt = "\n\n".join(parts)
-    print(f"\n===== ПРОМПТ ДЛЯ САММАРИ (диапазон {start_index}-{end_index}) =====\n{full_prompt}\n===== /ПРОМПТ ДЛЯ САММАРИ =====\n")
+    print(f"\n===== ПРОМПТ ДЛЯ САММАРИ (#{start_index}-#{end_index}, {len(batch)} сообщений) =====\n{full_prompt}\n===== /ПРОМПТ ДЛЯ САММАРИ =====\n")
 
     return {
         "ok": True,
@@ -96,7 +108,6 @@ def build_summary_prompt(chat_id, summary_prompt_text=None):
 
 
 def save_summary_block(chat_id, start_index, end_index, summary_text, title=None):
-    """Сохраняет новый блок саммари, вставленный пользователем (Шаг 7-8 из ТЗ)."""
     chat = repo.get_chat(chat_id)
     if not chat:
         raise ValueError(f"Чат {chat_id} не найден")
@@ -111,12 +122,12 @@ def save_summary_block(chat_id, start_index, end_index, summary_text, title=None
     }
     chat.setdefault("summary_blocks", []).append(block)
     chat["last_summarized_index"] = max(chat.get("last_summarized_index", -1), end_index)
+    chat["step_size"] = STEP_SIZE
     repo.save_chat(chat)
     return block
 
 
 def add_empty_summary_block(chat_id):
-    """Кнопка «+» — добавляет пустой блок саммари, который пользователь заполнит вручную."""
     chat = repo.get_chat(chat_id)
     if not chat:
         raise ValueError(f"Чат {chat_id} не найден")
@@ -149,8 +160,6 @@ def _recalculate_last_summarized_index(chat):
 
 
 def handle_messages_deletion(chat_id, deleted_indices):
-    """При удалении сообщений — чистит блоки саммари, диапазон которых их затрагивает
-    (Раздел «Удаление сообщений и очистка саммари» из ТЗ)."""
     chat = repo.get_chat(chat_id)
     if not chat:
         raise ValueError(f"Чат {chat_id} не найден")

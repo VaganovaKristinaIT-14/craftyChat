@@ -102,9 +102,21 @@
           "enabled": false,
           "id": "mu1qvy7jopcz3",
           "name": "Надстройка к Квену"
+        },
+        {
+          "content": "<anti_mindreading>\nNO MIND-READING OR OMNISCIENCE:\n- Strict boundary between internal thoughts/intentions and observable reality. Characters CANNOT know, hear, or react to {{user}}'s unspoken thoughts, past memories, narration-only descriptions, or hidden intentions.\n- Characters can ONLY react to explicit physical cues: spoken words, audible volume/tone, facial micro-expressions, body language, visible physical actions.\n- If {{user}}'s thought contradicts their outward behavior, the character must react ONLY to the outward behavior.\n- Prohibited: \"knowing what they meant\", answering unspoken questions, or referencing {{user}}'s inner monologues. Punish any metagaming or telepathy immediately.\n</anti_mindreading>",
+          "enabled": true,
+          "id": "mv73agoibt9lt",
+          "name": "anti_mindreading"
+        },
+        {
+          "content": "<friction_and_uncertainty>\nFriction & Uncertainty rules:\n1. Fallibility of Competence: no character possesses perfect foresight, infallible instincts, or absolute control over their environment. Highly competent, powerful, or arrogant characters must encounter calculation errors, blind spots, misjudged variables, and incomplete intel.\n2. Environmental & Technical Resistance: the world does not cooperate effortlessly. Infrastructure degrades, technology jams, protocols fail, weather interferes, and plans unravel due to trivial mechanical breakdowns or chaotic external factors.\n3. Physiological Toll: high-performance bodies, powers, and prolonged stress demand a biological cost. Enforce realistic sensory fatigue, delayed reaction times, chemical/hormonal spikes, physical strain, headaches, and tremors after extreme exertion or emotional suppression.\n4. Adaptive Friction: characters must not solve crises with effortless snap-decisions. Force them to pause, recalculate under pressure, improvise messy solutions, and experience sharp internal irritation or doubt when their established methods fail to produce immediate results.\n</friction_and_uncertainty>",
+          "enabled": true,
+          "id": "mv8hgm4n568xk",
+          "name": "human_factor"
         }
       ],
-      "tokenLimit": 90000
+      "tokenLimit": 100000
     }
   ]
 }
